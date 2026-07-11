@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #D4D4D4 transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #D4D4D4;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #A3A3A3;
+}
+
+.input {
+  width: 100%;
+  background: #F5F5F5;
+  border: 1px solid #E5E5E5;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: #171717;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.input:focus {
+  border-color: #171717;
+  background: #FFFFFF;
+}
+.input::placeholder {
+  color: #A3A3A3;
+}
+
+select.input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23A3A3A3' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+
+select.input option {
+  background: #FFFFFF;
+  color: #171717;
+}
