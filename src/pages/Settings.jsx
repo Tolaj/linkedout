@@ -176,6 +176,9 @@ export default function Settings() {
                 Select a root folder where LinkedOut will create the document structure
                 (01_Resumes, 02_Applications, etc.)
               </p>
+              <p className="text-xs text-base-400">
+                Recommended: <code className="bg-base-700 px-1 py-0.5 rounded text-[11px]">Documents/linkedout_data</code>
+              </p>
               <button onClick={handleSelectFolder} className="bg-accent text-accent-dark text-sm font-medium px-4 py-2 rounded-md hover:bg-accent-light transition-colors">
                 {folderStatus ? "Change folder" : "Select folder"}
               </button>

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import useSettingsStore from "./useSettingsStore";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 
@@ -10,6 +11,7 @@ const useAuthStore = create((set, get) => ({
   setAuth(user, token) {
     localStorage.setItem("linkedout_token", token);
     set({ user, token, loading: false });
+    useSettingsStore.getState().loadFromUser(user);
   },
 
   logout() {
@@ -52,6 +54,7 @@ const useAuthStore = create((set, get) => ({
       if (!res.ok) throw new Error();
       const data = await res.json();
       set({ user: data.user, loading: false });
+      useSettingsStore.getState().loadFromUser(data.user);
     } catch {
       get().logout();
     }
