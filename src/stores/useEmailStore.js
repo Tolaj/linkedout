@@ -51,7 +51,7 @@ const useEmailStore = create((set, get) => ({
   },
 
   addEmail: async (data) => {
-    const email = { ...data, id: uid(), sentAt: new Date().toISOString() };
+    const email = { id: uid(), sentAt: new Date().toISOString(), ...data };
     set({ emails: [email, ...get().emails] });
     await db.emails.put(email);
     try { await api.create("emails", email); } catch {}

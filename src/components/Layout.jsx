@@ -9,7 +9,7 @@ import useAuthStore from "../stores/useAuthStore";
 
 const NAV = [
   { to: "/", icon: LayoutDashboard, label: "Pipeline" },
-  { to: "/emails", icon: Mail, label: "Cold Emails" },
+  { to: "/emails", icon: Mail, label: "Emails" },
   { to: "/resumes", icon: FileText, label: "Resumes" },
   { to: "/applications", icon: FolderOpen, label: "Applications" },
   { to: "/prep", icon: BookOpen, label: "Interview Prep" },

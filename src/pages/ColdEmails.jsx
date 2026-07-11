@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Plus, Send, FileText, Clock, Mail, Trash2, Edit3, Eye, MailCheck } from "lucide-react";
+import { Plus, Send, FileText, Clock, Mail, Trash2, Edit3, Eye, MailCheck, RefreshCw, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import useEmailStore from "../stores/useEmailStore";
 import useAppStore from "../stores/useAppStore";
 import useContactStore from "../stores/useContactStore";
 import { isGmailConnected, sendEmail, connectGmail } from "../services/gmail";
+import { syncInboundEmails } from "../services/emailSync";
 import { EMAIL_STATUSES, uid } from "../lib/constants";
 import { format, isPast, parseISO } from "date-fns";
 
@@ -18,6 +19,8 @@ export default function ColdEmails() {
   const [showComposer, setShowComposer] = useState(false);
   const [editTemplate, setEditTemplate] = useState(null);
   const [showTemplateForm, setShowTemplateForm] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
 
   const loadContacts = useContactStore((s) => s.load);
   useEffect(() => { load(); loadContacts(); }, [load, loadContacts]);
@@ -29,10 +32,30 @@ export default function ColdEmails() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
         <div>
-          <h1 className="text-xl font-semibold font-mono mb-1">cold_outreach</h1>
+          <h1 className="text-xl font-semibold font-mono mb-1">emails</h1>
           <p className="text-sm text-base-300">Templates, tracking, and Gmail-powered sends.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          {syncMsg && <span className="text-xs text-green-400">{syncMsg}</span>}
+          <button
+            onClick={async () => {
+              if (!isGmailConnected()) {
+                try { await connectGmail(); } catch { return; }
+              }
+              setSyncing(true);
+              setSyncMsg("");
+              const n = await syncInboundEmails();
+              setSyncing(false);
+              setSyncMsg(n > 0 ? `${n} new email${n > 1 ? "s" : ""} synced` : "No new emails");
+              setTimeout(() => setSyncMsg(""), 5000);
+            }}
+            disabled={syncing}
+            className="flex items-center gap-2 bg-base-600 text-base-100 text-sm px-4 py-2.5 rounded-md hover:bg-base-500 transition-colors disabled:opacity-50"
+            title="Sync incoming emails from Gmail"
+          >
+            <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+            Sync
+          </button>
           {tab === "tracker" && (
             <button
               onClick={() => { setTab("compose"); setShowComposer(true); }}
@@ -124,11 +147,12 @@ function EmailTracker({ emails, updateEmail, deleteEmail, apps = [] }) {
       <table className="w-full text-sm text-left">
         <thead className="bg-base-700 text-xs text-base-300 uppercase tracking-wider">
           <tr>
+            <th className="px-3 py-3 w-8"></th>
             <th className="px-4 py-3 font-medium">Recipient</th>
             <th className="px-4 py-3 font-medium">Company</th>
             <th className="px-4 py-3 font-medium">Subject</th>
             <th className="px-4 py-3 font-medium">Linked App</th>
-            <th className="px-4 py-3 font-medium">Sent</th>
+            <th className="px-4 py-3 font-medium">Date</th>
             <th className="px-4 py-3 font-medium">Follow-up</th>
             <th className="px-4 py-3 font-medium">Status</th>
             <th className="px-4 py-3 font-medium text-right">Actions</th>
@@ -140,6 +164,13 @@ function EmailTracker({ emails, updateEmail, deleteEmail, apps = [] }) {
             const appLabel = getAppLabel(e.appId);
             return (
               <tr key={e.id} className={`bg-base-900 hover:bg-base-700 transition-colors ${needsFollowUp ? "border-l-2 border-l-[#D97706]" : ""}`}>
+                <td className="px-3 py-3">
+                  {e.direction === "inbound" ? (
+                    <ArrowDownLeft className="w-3.5 h-3.5 text-[#2563EB]" title="Incoming" />
+                  ) : (
+                    <ArrowUpRight className="w-3.5 h-3.5 text-[#16A34A]" title="Outgoing" />
+                  )}
+                </td>
                 <td className="px-4 py-3">
                   <div className="font-medium">{e.recipientName || "—"}</div>
                   <div className="text-[11px] text-base-400">{e.recipientEmail}</div>
@@ -160,13 +191,17 @@ function EmailTracker({ emails, updateEmail, deleteEmail, apps = [] }) {
                   ) : "—"}
                 </td>
                 <td className="px-4 py-3">
-                  <select
-                    value={e.status}
-                    onChange={(ev) => updateEmail(e.id, { status: ev.target.value })}
-                    className="input text-xs py-0.5 px-2 w-auto"
-                  >
-                    {EMAIL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                  {e.direction === "inbound" ? (
+                    <span className="text-xs text-[#2563EB]">received</span>
+                  ) : (
+                    <select
+                      value={e.status}
+                      onChange={(ev) => updateEmail(e.id, { status: ev.target.value })}
+                      className="input text-xs py-0.5 px-2 w-auto"
+                    >
+                      {EMAIL_STATUSES.filter((s) => s !== "received").map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end">

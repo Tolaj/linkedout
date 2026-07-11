@@ -27,7 +27,7 @@ export const RESUME_ARCHETYPES = [
   "Data_Engineer", "DevOps", "Mobile", "Other",
 ];
 
-export const EMAIL_STATUSES = ["draft", "sent", "replied", "no-response", "bounced"];
+export const EMAIL_STATUSES = ["draft", "sent", "received", "replied", "no-response", "bounced"];
 
 export const FOLDER_STRUCTURE = [
   "01_Resumes",

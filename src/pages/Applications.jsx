@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Upload, FileText, Trash2, Edit3, ExternalLink, ChevronDown, ChevronRight, Plus, Send, ArrowUpRight, ArrowDownLeft, Users } from "lucide-react";
+import { Upload, FileText, Trash2, Edit3, ExternalLink, ChevronDown, ChevronRight, Plus, Send, ArrowUpRight, ArrowDownLeft, Users, RefreshCw } from "lucide-react";
 import useAppStore from "../stores/useAppStore";
 import useEmailStore from "../stores/useEmailStore";
 import useContactStore from "../stores/useContactStore";
@@ -7,6 +7,7 @@ import db from "../services/offlineDb";
 import { uid, STAGE_COLOR, EMAIL_STATUSES } from "../lib/constants";
 import { isFileSystemSupported, hasRootDirectory, saveFile, createCompanyFolder, listFiles } from "../services/fileSystem";
 import { isGmailConnected, sendEmail, connectGmail } from "../services/gmail";
+import { syncInboundEmails } from "../services/emailSync";
 import FormModal from "../components/FormModal";
 import { format, parseISO } from "date-fns";
 
@@ -26,8 +27,20 @@ export default function Applications() {
   const [editingApp, setEditingApp] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
 
-  useEffect(() => { load(); loadEmails(); loadContacts(); }, [load, loadEmails, loadContacts]);
+  useEffect(() => {
+    load(); loadEmails(); loadContacts();
+  }, [load, loadEmails, loadContacts]);
+
+  useEffect(() => {
+    if (loaded && isGmailConnected()) {
+      syncInboundEmails().then((n) => {
+        if (n > 0) setSyncMsg(`${n} new email${n > 1 ? "s" : ""} synced`);
+      });
+    }
+  }, [loaded]);
 
   const activeApps = apps.filter((a) => a.status !== "Wishlist");
 
@@ -42,13 +55,37 @@ export default function Applications() {
           <h1 className="text-xl font-semibold font-mono mb-1">applications</h1>
           <p className="text-sm text-base-300">Per-company docs, JD snapshots, cover letters & notes.</p>
         </div>
-        <button
-          onClick={() => { setEditingApp(null); setModalOpen(true); }}
-          className="flex items-center gap-2 bg-accent text-accent-dark font-medium text-sm px-4 py-2.5 rounded-md hover:bg-accent-light transition-colors"
-        >
-          <Plus className="w-4 h-4" strokeWidth={2.5} />
-          Log application
-        </button>
+        <div className="flex items-center gap-2">
+          {syncMsg && (
+            <span className="text-xs text-green-400">{syncMsg}</span>
+          )}
+          <button
+            onClick={async () => {
+              if (!isGmailConnected()) {
+                try { await connectGmail(); } catch { return; }
+              }
+              setSyncing(true);
+              setSyncMsg("");
+              const n = await syncInboundEmails();
+              setSyncing(false);
+              setSyncMsg(n > 0 ? `${n} new email${n > 1 ? "s" : ""} synced` : "No new emails");
+              setTimeout(() => setSyncMsg(""), 5000);
+            }}
+            disabled={syncing}
+            className="flex items-center gap-2 bg-base-600 text-base-100 text-sm px-4 py-2.5 rounded-md hover:bg-base-500 transition-colors disabled:opacity-50"
+            title="Sync incoming emails from Gmail"
+          >
+            <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+            Sync
+          </button>
+          <button
+            onClick={() => { setEditingApp(null); setModalOpen(true); }}
+            className="flex items-center gap-2 bg-accent text-accent-dark font-medium text-sm px-4 py-2.5 rounded-md hover:bg-accent-light transition-colors"
+          >
+            <Plus className="w-4 h-4" strokeWidth={2.5} />
+            Log application
+          </button>
+        </div>
       </div>
 
       {activeApps.length === 0 ? (
@@ -76,7 +113,7 @@ export default function Applications() {
             <tbody className="divide-y divide-base-600">
               {activeApps.map((app) => {
                 const color = STAGE_COLOR[app.status] || {};
-                const domainEmails = emails.filter((e) => emailMatchesTargets(e, app.domain));
+                const domainEmails = emails.filter((e) => e.appId === app.id && e.direction !== "inbound" || emailMatchesTargets(e, app.domain));
                 const isExpanded = expandedId === app.id;
                 return (
                   <AppRow
@@ -284,9 +321,13 @@ function AppRow({ app, color, domainEmails, isExpanded, onToggle, onEdit, onDele
                             <td className="px-3 py-2">{e.subject}</td>
                             <td className="px-3 py-2 text-base-300">{e.sentAt ? format(parseISO(e.sentAt), "MMM d, yyyy") : "—"}</td>
                             <td className="px-3 py-2">
-                              <select value={e.status} onChange={(ev) => updateEmail(e.id, { status: ev.target.value })} className="input text-xs py-0 px-1 w-auto">
-                                {EMAIL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                              </select>
+                              {e.direction === "inbound" ? (
+                                <span className="text-xs text-[#2563EB]">received</span>
+                              ) : (
+                                <select value={e.status} onChange={(ev) => updateEmail(e.id, { status: ev.target.value })} className="input text-xs py-0 px-1 w-auto">
+                                  {EMAIL_STATUSES.filter((s) => s !== "received").map((s) => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                              )}
                             </td>
                             <td className="px-3 py-2 text-right">
                               <button onClick={() => deleteEmail(e.id)} className="text-base-400 hover:text-[#DC2626]">

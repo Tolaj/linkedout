@@ -115,3 +115,52 @@ export async function checkForReplies(threadId) {
   const data = await res.json();
   return data.messages || [];
 }
+
+export async function searchInboxEmails(query, maxResults = 50) {
+  if (!accessToken) return [];
+  const q = encodeURIComponent(query);
+  const res = await fetch(
+    `https://www.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=${maxResults}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  if (!data.messages) return [];
+
+  const details = await Promise.all(
+    data.messages.map(async (m) => {
+      const r = await fetch(
+        `https://www.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (!r.ok) return null;
+      return r.json();
+    })
+  );
+  return details.filter(Boolean);
+}
+
+function extractHeader(msg, name) {
+  const h = msg.payload?.headers?.find((h) => h.name.toLowerCase() === name.toLowerCase());
+  return h?.value || "";
+}
+
+function extractEmail(fromHeader) {
+  const match = fromHeader.match(/<([^>]+)>/);
+  return match ? match[1].toLowerCase() : fromHeader.toLowerCase().trim();
+}
+
+export function parseGmailMessage(msg) {
+  const from = extractHeader(msg, "From");
+  const subject = extractHeader(msg, "Subject");
+  const date = extractHeader(msg, "Date");
+  return {
+    gmailId: msg.id,
+    threadId: msg.threadId,
+    from: extractEmail(from),
+    fromRaw: from,
+    subject,
+    date: date ? new Date(date).toISOString() : new Date().toISOString(),
+    snippet: msg.snippet || "",
+  };
+}
