@@ -29,4 +29,14 @@ db.version(3).stores({
   syncQueue: "++id, collection, docId, operation, timestamp",
 });
 
+db.version(4).stores({
+  applications: "id, workspace, company, role, status, dateApplied",
+  emails: "id, appId, direction, recipientEmail, company, status, sentAt",
+  emailTemplates: "id, name",
+  resumesMeta: "id, workspace, archetype, version",
+  notes: "id, section, title",
+  contacts: "id, appId, email, name, position",
+  syncQueue: "++id, collection, docId, operation, timestamp",
+});
+
 export default db;

@@ -28,6 +28,10 @@ const useAuthStore = create((set, get) => ({
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Registration failed");
     get().setAuth(data.user, data.token);
+    const settings = useSettingsStore.getState();
+    if (!settings.folderName) {
+      settings.setFolderName("linkedout_data");
+    }
   },
 
   async login(email, password) {

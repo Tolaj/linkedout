@@ -1,18 +1,17 @@
 import { useState } from "react";
-import { Mail, FolderOpen, Download, Upload, CheckCircle, AlertCircle, Info, ChevronDown, ChevronUp } from "lucide-react";
+import { Mail, FolderOpen, Download, Upload, CheckCircle, AlertCircle, Info, ChevronDown, ChevronUp, Trash2, Plus } from "lucide-react";
 
 import useSettingsStore from "../stores/useSettingsStore";
 import useAppStore from "../stores/useAppStore";
 import useResumeStore from "../stores/useResumeStore";
 import { isGmailConnected, connectGmail, disconnectGmail, initGmail, isGmailConfigured } from "../services/gmail";
-import { isFileSystemSupported, selectRootDirectory, createFolderStructure } from "../services/fileSystem";
+import { isFileSystemSupported, selectRootDirectory, createFolderStructure, switchToFolder, removeFolderHandle } from "../services/fileSystem";
 import db from "../services/offlineDb";
 
 export default function Settings() {
   const settings = useSettingsStore();
   const [clientIdInput, setClientIdInput] = useState(settings.googleClientId);
   const [gmailConnected, setGmailConnected] = useState(isGmailConnected());
-  const [folderStatus, setFolderStatus] = useState(settings.folderName ? `Linked: ${settings.folderName}` : "");
   const [message, setMessage] = useState("");
   const [showGmailGuide, setShowGmailGuide] = useState(false);
 
@@ -46,12 +45,40 @@ export default function Settings() {
       const name = await selectRootDirectory();
       await createFolderStructure();
       settings.setFolderName(name);
-      setFolderStatus(`Linked: ${name}`);
-      setMessage("Folder structure created!");
+      setMessage(`Workspace "${name}" added and activated!`);
       useAppStore.getState().load();
       useResumeStore.getState().load();
     } catch (e) {
       if (e.name !== "AbortError") setMessage(`Error: ${e.message}`);
+    }
+    setTimeout(() => setMessage(""), 3000);
+  }
+
+  async function handleSwitchFolder(name) {
+    if (name === settings.folderName) return;
+    try {
+      const ok = await switchToFolder(name);
+      if (!ok) {
+        setMessage("Permission denied — please re-select the folder.");
+        return;
+      }
+      settings.setFolderName(name);
+      setMessage(`Switched to workspace "${name}"`);
+      useAppStore.getState().load();
+      useResumeStore.getState().load();
+    } catch (e) {
+      setMessage(`Error: ${e.message}`);
+    }
+    setTimeout(() => setMessage(""), 3000);
+  }
+
+  async function handleRemoveFolder(name) {
+    await removeFolderHandle(name);
+    settings.removeFolder(name);
+    setMessage(`Workspace "${name}" removed.`);
+    if (name === settings.folderName) {
+      useAppStore.getState().load();
+      useResumeStore.getState().load();
     }
     setTimeout(() => setMessage(""), 3000);
   }
@@ -163,7 +190,7 @@ export default function Settings() {
       </Section>
 
       {/* File System */}
-      <Section icon={FolderOpen} title="Local Folder">
+      <Section icon={FolderOpen} title="Workspaces">
         <div className="space-y-3">
           {!isFileSystemSupported() ? (
             <div className="flex items-center gap-2 text-xs text-[#D97706]">
@@ -173,16 +200,45 @@ export default function Settings() {
           ) : (
             <>
               <p className="text-xs text-base-300">
-                Select a root folder where LinkedOut will create the document structure
-                (01_Resumes, 02_Applications, etc.)
+                Each workspace is a local folder. Only the active workspace tracks and stores data.
               </p>
-              <p className="text-xs text-base-400">
-                Recommended: <code className="bg-base-700 px-1 py-0.5 rounded text-[11px]">Documents/linkedout_data</code>
-              </p>
-              <button onClick={handleSelectFolder} className="bg-accent text-accent-dark text-sm font-medium px-4 py-2 rounded-md hover:bg-accent-light transition-colors">
-                {folderStatus ? "Change folder" : "Select folder"}
+              {settings.folders.length > 0 && (
+                <div className="space-y-1">
+                  {settings.folders.map((name) => (
+                    <div
+                      key={name}
+                      className={`flex items-center justify-between px-3 py-2 rounded-md text-sm cursor-pointer transition-colors ${
+                        name === settings.folderName
+                          ? "bg-accent/15 border border-accent/40 text-accent"
+                          : "bg-base-800 border border-base-600 text-base-200 hover:border-base-400"
+                      }`}
+                      onClick={() => handleSwitchFolder(name)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <FolderOpen className="w-3.5 h-3.5" />
+                        <span>{name}</span>
+                        {name === settings.folderName && (
+                          <span className="text-[10px] bg-accent/20 text-accent px-1.5 py-0.5 rounded-full font-medium">active</span>
+                        )}
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleRemoveFolder(name); }}
+                        className="text-base-400 hover:text-[#DC2626] transition-colors p-1"
+                        title="Remove workspace"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={handleSelectFolder}
+                className="flex items-center gap-2 bg-accent text-accent-dark text-sm font-medium px-4 py-2 rounded-md hover:bg-accent-light transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add workspace
               </button>
-              {folderStatus && <p className="text-xs text-base-200">{folderStatus}</p>}
             </>
           )}
         </div>

@@ -93,8 +93,8 @@ export default function FormModal({ app, onClose }) {
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Email domain">
-              <input value={form.domain} onChange={(e) => set("domain", e.target.value)} className="input" placeholder="company.com" />
+            <Field label="Notes">
+              <textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={1} className="input resize-none" />
             </Field>
             <Field label="Next action date">
               <input type="date" value={form.nextActionDate} onChange={(e) => set("nextActionDate", e.target.value)} className="input" />
@@ -103,9 +103,7 @@ export default function FormModal({ app, onClose }) {
           <Field label="Job link">
             <input value={form.link} onChange={(e) => set("link", e.target.value)} className="input" placeholder="https://" />
           </Field>
-          <Field label="Notes">
-            <textarea value={form.notes} onChange={(e) => set("notes", e.target.value)} rows={2} className="input resize-none" />
-          </Field>
+          <DomainField value={form.domain} onChange={(v) => set("domain", v)} />
 
           <div className="flex items-center justify-between pt-2">
             {isEdit ? (
@@ -139,5 +137,55 @@ function Field({ label, children }) {
       <div className="text-[11px] text-base-300 mb-1">{label}</div>
       {children}
     </label>
+  );
+}
+
+function DomainField({ value, onChange }) {
+  const [input, setInput] = useState("");
+  const items = value ? value.split(",").map((s) => s.trim()).filter(Boolean) : [];
+
+  function addItem() {
+    const v = input.trim();
+    if (!v || items.includes(v)) return;
+    onChange([...items, v].join(", "));
+    setInput("");
+  }
+
+  function removeItem(idx) {
+    onChange(items.filter((_, i) => i !== idx).join(", "));
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addItem();
+    }
+    if (e.key === "Backspace" && !input && items.length > 0) {
+      removeItem(items.length - 1);
+    }
+  }
+
+  return (
+    <div>
+      <div className="text-[11px] text-base-300 mb-1">Email / Domain</div>
+      <div className="input flex flex-wrap items-center gap-1 min-h-[38px] h-auto py-1.5 cursor-text" onClick={(e) => e.currentTarget.querySelector("input")?.focus()}>
+        {items.map((item, i) => (
+          <span key={i} className="inline-flex items-center gap-0.5 bg-base-700 text-xs px-1.5 py-0.5 rounded">
+            <span className="font-mono text-[11px]">{item}</span>
+            <button type="button" onClick={() => removeItem(i)} className="text-base-400 hover:text-[#DC2626]">
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        ))}
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={addItem}
+          className="flex-1 min-w-[80px] bg-transparent outline-none text-sm border-none p-0 focus:ring-0"
+          placeholder={items.length === 0 ? "Add email or domain, press Enter" : ""}
+        />
+      </div>
+    </div>
   );
 }

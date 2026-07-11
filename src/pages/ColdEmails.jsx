@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Plus, Send, FileText, Clock, Mail, Trash2, Edit3, Eye, MailCheck } from "lucide-react";
 import useEmailStore from "../stores/useEmailStore";
 import useAppStore from "../stores/useAppStore";
+import useContactStore from "../stores/useContactStore";
 import { isGmailConnected, sendEmail, connectGmail } from "../services/gmail";
 import { EMAIL_STATUSES, uid } from "../lib/constants";
 import { format, isPast, parseISO } from "date-fns";
@@ -10,12 +12,18 @@ const TABS = ["tracker", "templates", "compose"];
 
 export default function ColdEmails() {
   const { emails, templates, loaded, load, addEmail, updateEmail, deleteEmail, addTemplate, updateTemplate, deleteTemplate } = useEmailStore();
-  const [tab, setTab] = useState("tracker");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const prelinkedAppId = searchParams.get("app") || "";
+  const [tab, setTab] = useState(prelinkedAppId ? "compose" : "tracker");
   const [showComposer, setShowComposer] = useState(false);
   const [editTemplate, setEditTemplate] = useState(null);
   const [showTemplateForm, setShowTemplateForm] = useState(false);
 
-  useEffect(() => { load(); }, [load]);
+  const loadContacts = useContactStore((s) => s.load);
+  useEffect(() => { load(); loadContacts(); }, [load, loadContacts]);
+  useEffect(() => {
+    if (prelinkedAppId) setSearchParams({}, { replace: true });
+  }, []);
 
   return (
     <div className="p-6">
@@ -77,6 +85,7 @@ export default function ColdEmails() {
             setTab("tracker");
           }}
           apps={useAppStore.getState().apps}
+          prelinkedAppId={prelinkedAppId}
         />
       )}
 
@@ -206,15 +215,42 @@ function TemplateList({ templates, onEdit, onDelete }) {
   );
 }
 
-function Composer({ templates, onSend, apps = [] }) {
+function Composer({ templates, onSend, apps = [], prelinkedAppId = "" }) {
+  const preApp = prelinkedAppId ? apps.find((a) => a.id === prelinkedAppId) : null;
+  const contacts = useContactStore((s) => s.contacts);
+  const addContact = useContactStore((s) => s.addContact);
   const [selectedTemplate, setSelectedTemplate] = useState("");
-  const [linkedAppId, setLinkedAppId] = useState("");
+  const [linkedAppId, setLinkedAppId] = useState(prelinkedAppId);
   const [form, setForm] = useState({
-    recipientEmail: "", recipientName: "", company: "", role: "",
+    recipientEmail: "", recipientName: "",
+    company: preApp?.company || "", role: preApp?.role || "",
     subject: "", body: "", followUpDate: "",
   });
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const wrapperRef = useRef(null);
+
+  const filtered = form.recipientEmail
+    ? contacts.filter((c) =>
+        c.email.toLowerCase().includes(form.recipientEmail.toLowerCase()) ||
+        (c.name || "").toLowerCase().includes(form.recipientEmail.toLowerCase())
+      )
+    : contacts;
+
+  function selectContact(c) {
+    setForm((f) => ({ ...f, recipientEmail: c.email, recipientName: c.name || "" }));
+    setShowSuggestions(false);
+  }
+
+  async function ensureContact() {
+    const email = form.recipientEmail.trim();
+    if (!email || !email.includes("@")) return;
+    const exists = contacts.some((c) => c.email.toLowerCase() === email.toLowerCase());
+    if (!exists) {
+      await addContact({ email, name: form.recipientName });
+    }
+  }
 
   function linkApp(appId) {
     setLinkedAppId(appId);
@@ -255,6 +291,7 @@ function Composer({ templates, onSend, apps = [] }) {
       const finalSubject = interpolate(form.subject);
       const finalBody = interpolate(form.body);
       await sendEmail({ to: form.recipientEmail, subject: finalSubject, body: finalBody });
+      await ensureContact();
       await onSend({
         ...form,
         subject: finalSubject,
@@ -307,9 +344,33 @@ function Composer({ templates, onSend, apps = [] }) {
 
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <div>
+          <div className="relative" ref={wrapperRef}>
             <label className="text-[11px] text-base-300 mb-1 block">Recipient email</label>
-            <input value={form.recipientEmail} onChange={(e) => setForm({ ...form, recipientEmail: e.target.value })} className="input" placeholder="name@company.com" />
+            <input
+              value={form.recipientEmail}
+              onChange={(e) => { setForm({ ...form, recipientEmail: e.target.value }); setShowSuggestions(true); }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              className="input"
+              placeholder="name@company.com"
+              autoComplete="off"
+            />
+            {showSuggestions && filtered.length > 0 && (
+              <div className="absolute z-10 left-0 right-0 top-full mt-0.5 bg-base-800 border border-base-600 rounded-lg max-h-40 overflow-y-auto shadow-lg">
+                {filtered.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => selectContact(c)}
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-base-700 flex items-center justify-between"
+                  >
+                    <span className="font-medium">{c.name || c.email}</span>
+                    <span className="text-base-400 font-mono text-[11px]">{c.email}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div>
             <label className="text-[11px] text-base-300 mb-1 block">Recipient name</label>

@@ -7,16 +7,23 @@ const STORE_NAME = "handles";
 
 function openHandleDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore(STORE_NAME);
+    const req = indexedDB.open(DB_NAME, 2);
+    req.onupgradeneeded = (e) => {
+      const idb = req.result;
+      if (!idb.objectStoreNames.contains(STORE_NAME)) {
+        idb.createObjectStore(STORE_NAME);
+      }
+    };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }
 
-async function persistHandle(handle) {
+async function persistHandle(name, handle) {
   const idb = await openHandleDB();
   const tx = idb.transaction(STORE_NAME, "readwrite");
+  tx.objectStore(STORE_NAME).put(handle, `folder:${name}`);
+  // Keep "root" key pointing to the active handle for backward compat
   tx.objectStore(STORE_NAME).put(handle, "root");
   return new Promise((resolve, reject) => {
     tx.oncomplete = resolve;
@@ -24,13 +31,24 @@ async function persistHandle(handle) {
   });
 }
 
-async function loadHandle() {
+async function loadHandle(name) {
   const idb = await openHandleDB();
   const tx = idb.transaction(STORE_NAME, "readonly");
-  const req = tx.objectStore(STORE_NAME).get("root");
+  const key = name ? `folder:${name}` : "root";
+  const req = tx.objectStore(STORE_NAME).get(key);
   return new Promise((resolve) => {
     req.onsuccess = () => resolve(req.result || null);
     req.onerror = () => resolve(null);
+  });
+}
+
+async function removeHandle(name) {
+  const idb = await openHandleDB();
+  const tx = idb.transaction(STORE_NAME, "readwrite");
+  tx.objectStore(STORE_NAME).delete(`folder:${name}`);
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
   });
 }
 
@@ -44,7 +62,8 @@ export function hasRootDirectory() {
 
 export async function restoreRootDirectory() {
   if (!isFileSystemSupported()) return false;
-  const handle = await loadHandle();
+  const activeName = localStorage.getItem("linkedout_folder");
+  const handle = await loadHandle(activeName);
   if (!handle) return false;
   const perm = await handle.queryPermission({ mode: "readwrite" });
   if (perm === "granted") {
@@ -55,7 +74,8 @@ export async function restoreRootDirectory() {
 }
 
 export async function requestPermission() {
-  const handle = await loadHandle();
+  const activeName = localStorage.getItem("linkedout_folder");
+  const handle = await loadHandle(activeName);
   if (!handle) return false;
   const perm = await handle.requestPermission({ mode: "readwrite" });
   if (perm === "granted") {
@@ -65,12 +85,32 @@ export async function requestPermission() {
   return false;
 }
 
+export async function switchToFolder(name) {
+  const handle = await loadHandle(name);
+  if (!handle) return false;
+  const perm = await handle.queryPermission({ mode: "readwrite" });
+  if (perm === "granted") {
+    rootHandle = handle;
+    return true;
+  }
+  const req = await handle.requestPermission({ mode: "readwrite" });
+  if (req === "granted") {
+    rootHandle = handle;
+    return true;
+  }
+  return false;
+}
+
+export async function removeFolderHandle(name) {
+  await removeHandle(name);
+}
+
 export async function selectRootDirectory() {
   if (!isFileSystemSupported()) {
     throw new Error("File System Access API not supported in this browser");
   }
   rootHandle = await window.showDirectoryPicker({ mode: "readwrite" });
-  await persistHandle(rootHandle);
+  await persistHandle(rootHandle.name, rootHandle);
   return rootHandle.name;
 }
 
