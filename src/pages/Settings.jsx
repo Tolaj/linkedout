@@ -123,7 +123,7 @@ export default function Settings() {
                 <li>Go to <strong>Google Cloud Console</strong> → create a new project (or use existing)</li>
                 <li>Navigate to <strong>APIs & Services → Library</strong> → search & enable <strong>Gmail API</strong></li>
                 <li>Go to <strong>APIs & Services → Credentials</strong> → click <strong>Create Credentials → OAuth Client ID</strong></li>
-                <li>Choose <strong>Web application</strong>, add <code className="bg-base-700 px-1 py-0.5 rounded text-[11px]">http://localhost:5173</code> to Authorized JavaScript origins (and your deploy URL)</li>
+                <li>Choose <strong>Web application</strong>, add <code className="bg-base-700 px-1 py-0.5 rounded text-[11px]">https://linkedout.swapniljadhav.com</code> and <code className="bg-base-700 px-1 py-0.5 rounded text-[11px]">http://localhost:5173</code> to Authorized JavaScript origins</li>
                 <li>Copy the <strong>Client ID</strong> (ends with <code className="bg-base-700 px-1 py-0.5 rounded text-[11px]">.apps.googleusercontent.com</code>)</li>
                 <li>You may also need to configure the <strong>OAuth consent screen</strong> (set to External, add your email as a test user)</li>
               </ol>

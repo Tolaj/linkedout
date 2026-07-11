@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 import {
   LayoutDashboard, Mail, FileText, FolderOpen,
-  BookOpen, Settings, Menu, LogOut,
+  BookOpen, Settings, Menu, LogOut, Link2,
 } from "lucide-react";
 import { useState } from "react";
 import useAuthStore from "../stores/useAuthStore";
@@ -33,8 +33,8 @@ export default function Layout() {
         }`}
       >
         <div className="flex items-center gap-2 px-5 py-5 border-b border-base-600">
-          <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center">
-            <span className="text-accent-dark font-bold text-sm font-mono">L</span>
+          <div className="w-7 h-7 rounded-lg bg-base-100 flex items-center justify-center">
+            <Link2 className="w-4 h-4 text-base-900" strokeWidth={2.5} />
           </div>
           <span className="font-mono font-bold text-sm tracking-tight">linkedout</span>
         </div>
