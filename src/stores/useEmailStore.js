@@ -9,11 +9,13 @@ const useEmailStore = create((set, get) => ({
   loaded: false,
 
   load: async () => {
-    const [cachedEmails, cachedTemplates] = await Promise.all([
-      db.emails.toArray(),
-      db.emailTemplates.toArray(),
-    ]);
-    set({ emails: cachedEmails, templates: cachedTemplates, loaded: true });
+    if (!get().loaded) {
+      const [cachedEmails, cachedTemplates] = await Promise.all([
+        db.emails.toArray(),
+        db.emailTemplates.toArray(),
+      ]);
+      set({ emails: cachedEmails, templates: cachedTemplates, loaded: true });
+    }
 
     try {
       const [remoteEmails, remoteTemplates] = await Promise.all([
