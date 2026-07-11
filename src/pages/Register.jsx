@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Link2 } from "lucide-react";
 import useAuthStore from "../stores/useAuthStore";
+import Logo from "../components/Logo";
 
 export default function Register() {
   const register = useAuthStore((s) => s.register);
@@ -32,9 +32,7 @@ export default function Register() {
     <div className="min-h-screen flex items-center justify-center bg-base-800 px-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-2 justify-center mb-8">
-          <div className="w-8 h-8 rounded-lg bg-base-100 flex items-center justify-center">
-            <Link2 className="w-4.5 h-4.5 text-base-900" strokeWidth={2.5} />
-          </div>
+          <Logo size={32} />
           <span className="font-mono font-bold text-lg tracking-tight text-base-100">linkedout</span>
         </div>
 
