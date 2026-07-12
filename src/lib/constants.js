@@ -6,7 +6,7 @@ export const STAGES = ["Wishlist", "Applied", "Screening", "Interviewing", "Offe
 
 export const STAGE_COLOR = {
   Wishlist:     { dot: "bg-[#A3A3A3]", ring: "border-[#A3A3A3]", text: "text-[#737373]", bg: "bg-[#F5F5F5]" },
-  Applied:      { dot: "bg-[#6366F1]", ring: "border-[#6366F1]", text: "text-[#6366F1]", bg: "bg-[#EEF2FF]" },
+  Applied:      { dot: "bg-[#0891B2]", ring: "border-[#0891B2]", text: "text-[#0891B2]", bg: "bg-[#ECFEFF]" },
   Screening:    { dot: "bg-[#D97706]", ring: "border-[#D97706]", text: "text-[#D97706]", bg: "bg-[#FFFBEB]" },
   Interviewing: { dot: "bg-[#2563EB]", ring: "border-[#2563EB]", text: "text-[#2563EB]", bg: "bg-[#EFF6FF]" },
   Offer:        { dot: "bg-[#16A34A]", ring: "border-[#16A34A]", text: "text-[#16A34A]", bg: "bg-[#F0FDF4]" },
