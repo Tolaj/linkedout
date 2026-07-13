@@ -123,7 +123,14 @@ export default function Applications() {
             <tbody className="divide-y divide-base-600">
               {activeApps.map((app) => {
                 const color = STAGE_COLOR[app.status] || {};
-                const domainEmails = emails.filter((e) => (e.appId === app.id && e.direction !== "inbound") || (e.direction === "inbound" && emailMatchesTargets(e, app.domain)));
+                const domainEmails = emails.filter((e) => {
+                  if (e.appId === app.id && e.direction !== "inbound") return true;
+                  if (e.direction === "inbound" && emailMatchesTargets(e, app.domain)) {
+                    if (app.dateApplied && e.sentAt && e.sentAt.slice(0, 10) < app.dateApplied.slice(0, 10)) return false;
+                    return true;
+                  }
+                  return false;
+                });
                 const isExpanded = expandedId === app.id;
                 return (
                   <AppRow
