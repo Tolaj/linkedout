@@ -123,7 +123,7 @@ export default function Applications() {
             <tbody className="divide-y divide-base-600">
               {activeApps.map((app) => {
                 const color = STAGE_COLOR[app.status] || {};
-                const domainEmails = emails.filter((e) => e.appId === app.id && e.direction !== "inbound" || emailMatchesTargets(e, app.domain));
+                const domainEmails = emails.filter((e) => (e.appId === app.id && e.direction !== "inbound") || (e.direction === "inbound" && emailMatchesTargets(e, app.domain)));
                 const isExpanded = expandedId === app.id;
                 return (
                   <AppRow

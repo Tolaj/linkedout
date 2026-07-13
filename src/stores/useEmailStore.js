@@ -22,11 +22,15 @@ const useEmailStore = create((set, get) => ({
         api.getAll("emails"),
         api.getAll("templates"),
       ]);
-      await db.emails.clear();
-      await db.emails.bulkPut(remoteEmails);
-      await db.emailTemplates.clear();
-      await db.emailTemplates.bulkPut(remoteTemplates);
-      set({ emails: remoteEmails, templates: remoteTemplates });
+      if (Array.isArray(remoteEmails) && remoteEmails.length > 0) {
+        await db.emails.clear();
+        await db.emails.bulkPut(remoteEmails);
+      }
+      if (Array.isArray(remoteTemplates) && remoteTemplates.length > 0) {
+        await db.emailTemplates.clear();
+        await db.emailTemplates.bulkPut(remoteTemplates);
+      }
+      set({ emails: remoteEmails || [], templates: remoteTemplates || [] });
     } catch {}
   },
 
@@ -38,7 +42,9 @@ const useEmailStore = create((set, get) => ({
   },
 
   updateTemplate: async (id, data) => {
-    const updated = { ...data, id };
+    const existing = get().templates.find((t) => t.id === id);
+    if (!existing) return;
+    const updated = { ...existing, ...data, id };
     set({ templates: get().templates.map((t) => (t.id === id ? updated : t)) });
     await db.emailTemplates.put(updated);
     try { await api.update("templates", id, updated); } catch {}

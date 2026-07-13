@@ -152,7 +152,9 @@ async function callLlm(config, messages, tools) {
   const msg = data.choices?.[0]?.message;
   if (!msg?.tool_calls?.length) return null;
   const call = msg.tool_calls[0];
-  return { action: call.function.name, ...JSON.parse(call.function.arguments) };
+  try {
+    return { action: call.function.name, ...JSON.parse(call.function.arguments) };
+  } catch { return null; }
 }
 
 // Tier 1: Quick triage — just sender + subject, minimal tokens

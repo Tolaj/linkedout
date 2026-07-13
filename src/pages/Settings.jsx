@@ -139,8 +139,13 @@ export default function Settings() {
       </div>
 
       {message && (
-        <div className="mb-4 text-xs bg-base-900 border border-base-600 rounded-lg px-4 py-2.5 flex items-center gap-2">
-          <CheckCircle className="w-3.5 h-3.5 text-accent" />
+        <div className={`mb-4 text-xs bg-base-900 border rounded-lg px-4 py-2.5 flex items-center gap-2 ${
+          message.startsWith("Error") || message.startsWith("Failed") ? "border-[#DC2626]/40" : "border-base-600"
+        }`}>
+          {message.startsWith("Error") || message.startsWith("Failed")
+            ? <AlertCircle className="w-3.5 h-3.5 text-[#DC2626]" />
+            : <CheckCircle className="w-3.5 h-3.5 text-accent" />
+          }
           {message}
         </div>
       )}

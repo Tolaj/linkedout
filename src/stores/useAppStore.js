@@ -64,10 +64,14 @@ const useAppStore = create((set, get) => ({
 
     try {
       const remote = await api.getAll("applications");
-      await db.applications.clear();
-      await db.applications.bulkPut(remote);
-      const remoteFiltered = workspace ? remote.filter((a) => !a.workspace || a.workspace === workspace) : remote;
-      set({ apps: remoteFiltered, online: true });
+      if (Array.isArray(remote) && remote.length > 0) {
+        await db.applications.clear();
+        await db.applications.bulkPut(remote);
+        const remoteFiltered = workspace ? remote.filter((a) => !a.workspace || a.workspace === workspace) : remote;
+        set({ apps: remoteFiltered, online: true });
+      } else {
+        set({ online: true });
+      }
     } catch {
       set({ online: false });
     }
@@ -86,7 +90,9 @@ const useAppStore = create((set, get) => ({
   },
 
   updateApp: async (id, data) => {
-    const updated = { ...data, id, updatedAt: new Date().toISOString() };
+    const existing = get().apps.find((a) => a.id === id);
+    if (!existing) return;
+    const updated = { ...existing, ...data, id, updatedAt: new Date().toISOString() };
     set({ apps: get().apps.map((a) => (a.id === id ? updated : a)) });
     await db.applications.put(updated);
     try { await api.update("applications", id, updated); } catch {}

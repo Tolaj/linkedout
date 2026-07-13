@@ -14,7 +14,7 @@ async function request(path, options = {}) {
     if (res.status === 401) {
       localStorage.removeItem("linkedout_token");
       window.location.href = "/login";
-      return;
+      throw new Error("Unauthorized");
     }
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || res.statusText);

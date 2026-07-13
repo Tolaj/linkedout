@@ -13,6 +13,7 @@ const TABS = ["tracker", "templates", "compose"];
 
 export default function ColdEmails() {
   const { emails, templates, loaded, load, addEmail, updateEmail, deleteEmail, addTemplate, updateTemplate, deleteTemplate } = useEmailStore();
+  const apps = useAppStore((s) => s.apps);
   const [searchParams, setSearchParams] = useSearchParams();
   const prelinkedAppId = searchParams.get("app") || "";
   const [tab, setTab] = useState(prelinkedAppId ? "compose" : "tracker");
@@ -101,12 +102,12 @@ export default function ColdEmails() {
       {tab === "tracker" && <EmailTracker emails={emails.filter((e) => {
         if (e.direction !== "inbound") return true;
         if (!e.appId) return false;
-        const app = useAppStore.getState().apps.find((a) => a.id === e.appId);
-        if (!app?.domain) return false;
+        const linkedApp = apps.find((a) => a.id === e.appId);
+        if (!linkedApp?.domain) return false;
         const sender = (e.recipientEmail || "").toLowerCase();
-        return app.domain.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean)
+        return linkedApp.domain.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean)
           .some((t) => t.includes("@") ? sender === t : sender.endsWith("@" + t));
-      })} updateEmail={updateEmail} deleteEmail={deleteEmail} apps={useAppStore.getState().apps} />}
+      })} updateEmail={updateEmail} deleteEmail={deleteEmail} apps={apps} />}
       {tab === "templates" && (
         <TemplateList
           templates={templates}
@@ -121,7 +122,7 @@ export default function ColdEmails() {
             await addEmail(data);
             setTab("tracker");
           }}
-          apps={useAppStore.getState().apps}
+          apps={apps}
           prelinkedAppId={prelinkedAppId}
         />
       )}

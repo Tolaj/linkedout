@@ -90,8 +90,8 @@ export async function syncInboundEmails(onProgress) {
     if (messages.length === 0) return result;
 
     const existing = useEmailStore.getState().emails;
-    const existingGmailIds = new Set(existing.map((e) => e.gmailId).filter(Boolean));
-    const existingThreadIds = new Set(existing.map((e) => e.threadId).filter(Boolean));
+    const seenGmailIds = new Set(existing.map((e) => e.gmailId).filter(Boolean));
+    const seenThreadIds = new Set(existing.map((e) => e.threadId).filter(Boolean));
     const skippedIds = llmActive ? getSkippedIds() : new Set();
     const addEmail = useEmailStore.getState().addEmail;
     const unmatched = [];
@@ -99,14 +99,16 @@ export async function syncInboundEmails(onProgress) {
     // Pass 1: System rules — match by domain/email
     for (const msg of messages) {
       const parsed = parseGmailMessage(msg);
-      if (existingGmailIds.has(parsed.gmailId)) continue;
-      if (existingThreadIds.has(parsed.threadId)) continue;
+      if (seenGmailIds.has(parsed.gmailId)) continue;
+      if (seenThreadIds.has(parsed.threadId)) continue;
       if (myEmail && parsed.from === myEmail.toLowerCase()) continue;
 
       const matchedApp = matchAppForSender(parsed.from, apps);
       if (matchedApp) {
         if (matchedApp.dateApplied && parsed.date && parsed.date.slice(0, 10) < matchedApp.dateApplied.slice(0, 10)) continue;
         await trackEmail(addEmail, parsed, matchedApp);
+        seenGmailIds.add(parsed.gmailId);
+        seenThreadIds.add(parsed.threadId);
         result.added++;
       } else if (llmActive && !skippedIds.has(parsed.gmailId)) {
         unmatched.push(parsed);
@@ -142,7 +144,7 @@ export async function syncInboundEmails(onProgress) {
               dateApplied: parsed.date?.slice(0, 10) || new Date().toISOString().slice(0, 10),
               source: "Email",
               domain,
-              referral: "No",
+              referral: "N",
               resumeVersion: "",
               link: "",
               notes: "",
