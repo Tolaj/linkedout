@@ -4,6 +4,7 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 let codeClient = null;
 let accessToken = localStorage.getItem("gmail_access_token") || null;
 let refreshing = null;
+let restorePromise = null;
 
 function getAuthHeaders() {
   const token = localStorage.getItem("linkedout_token");
@@ -54,22 +55,30 @@ export function initGmail() {
 }
 
 // Try to restore connection using backend refresh token
-export async function restoreGmail() {
-  if (accessToken) return true;
+export function restoreGmail() {
+  if (accessToken) return Promise.resolve(true);
+  if (restorePromise) return restorePromise;
   const clientId = getClientId();
-  if (!clientId) return false;
-  try {
-    const res = await fetch(`${API_URL}/gmail/token?clientId=${encodeURIComponent(clientId)}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) return false;
-    const data = await res.json();
-    accessToken = data.accessToken;
-    localStorage.setItem("gmail_access_token", accessToken);
-    return true;
-  } catch {
-    return false;
-  }
+  if (!clientId) return Promise.resolve(false);
+  restorePromise = (async () => {
+    try {
+      const token = localStorage.getItem("linkedout_token");
+      if (!token) return false;
+      const res = await fetch(`${API_URL}/gmail/token?clientId=${encodeURIComponent(clientId)}`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      accessToken = data.accessToken;
+      localStorage.setItem("gmail_access_token", accessToken);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      restorePromise = null;
+    }
+  })();
+  return restorePromise;
 }
 
 // Refresh access token via backend

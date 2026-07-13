@@ -2,7 +2,8 @@ import { create } from "zustand";
 import db from "../services/offlineDb";
 import { api } from "../services/api";
 import { uid } from "../lib/constants";
-import { isFileSystemSupported, hasRootDirectory, saveFile, readFile } from "../services/fileSystem";
+import { isFileSystemSupported, hasRootDirectory, saveFile, readFile, listFiles, deleteDirectory } from "../services/fileSystem";
+import useEmailStore from "./useEmailStore";
 
 function getWorkspace() {
   return localStorage.getItem("linkedout_folder") || "";
@@ -64,14 +65,12 @@ const useAppStore = create((set, get) => ({
 
     try {
       const remote = await api.getAll("applications");
-      if (Array.isArray(remote) && remote.length > 0) {
-        await db.applications.clear();
+      if (Array.isArray(remote)) {
         await db.applications.bulkPut(remote);
-        const remoteFiltered = workspace ? remote.filter((a) => !a.workspace || a.workspace === workspace) : remote;
-        set({ apps: remoteFiltered, online: true });
-      } else {
-        set({ online: true });
       }
+      const all = await db.applications.toArray();
+      const filtered = workspace ? all.filter((a) => !a.workspace || a.workspace === workspace) : all;
+      set({ apps: filtered, online: true });
     } catch {
       set({ online: false });
     }
@@ -99,9 +98,23 @@ const useAppStore = create((set, get) => ({
   },
 
   deleteApp: async (id) => {
+    const app = get().apps.find((a) => a.id === id);
     set({ apps: get().apps.filter((a) => a.id !== id) });
     await db.applications.delete(id);
     try { await api.remove("applications", id); } catch {}
+    const emailStore = useEmailStore.getState();
+    const linked = emailStore.emails.filter((e) => e.appId === id);
+    for (const e of linked) {
+      await emailStore.deleteEmail(e.id);
+    }
+    if (app && isFileSystemSupported() && hasRootDirectory()) {
+      try {
+        const entries = await listFiles("02_Applications");
+        const companySlug = sanitize(app.company);
+        const match = entries.find((e) => e.kind === "directory" && e.name.includes(companySlug));
+        if (match) await deleteDirectory(`02_Applications/${match.name}`);
+      } catch {}
+    }
   },
 
   moveStage: async (id, newStatus) => {

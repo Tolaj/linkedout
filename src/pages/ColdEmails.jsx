@@ -23,8 +23,9 @@ export default function ColdEmails() {
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
 
+  const loadApps = useAppStore((s) => s.load);
   const loadContacts = useContactStore((s) => s.load);
-  useEffect(() => { load(); loadContacts(); }, [load, loadContacts]);
+  useEffect(() => { load(); loadApps(); loadContacts(); }, [load, loadApps, loadContacts]);
   useEffect(() => {
     if (prelinkedAppId) setSearchParams({}, { replace: true });
   }, []);

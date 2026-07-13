@@ -22,15 +22,15 @@ const useEmailStore = create((set, get) => ({
         api.getAll("emails"),
         api.getAll("templates"),
       ]);
-      if (Array.isArray(remoteEmails) && remoteEmails.length > 0) {
-        await db.emails.clear();
+      if (Array.isArray(remoteEmails)) {
         await db.emails.bulkPut(remoteEmails);
       }
-      if (Array.isArray(remoteTemplates) && remoteTemplates.length > 0) {
-        await db.emailTemplates.clear();
+      if (Array.isArray(remoteTemplates)) {
         await db.emailTemplates.bulkPut(remoteTemplates);
       }
-      set({ emails: remoteEmails || [], templates: remoteTemplates || [] });
+      const allEmails = await db.emails.toArray();
+      const allTemplates = await db.emailTemplates.toArray();
+      set({ emails: allEmails, templates: allTemplates });
     } catch {}
   },
 
@@ -60,7 +60,14 @@ const useEmailStore = create((set, get) => ({
     const email = { id: uid(), sentAt: new Date().toISOString(), ...data };
     set({ emails: [email, ...get().emails] });
     await db.emails.put(email);
-    try { await api.create("emails", email); } catch {}
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await api.create("emails", email);
+        break;
+      } catch (e) {
+        if (attempt === 2) console.error("Failed to persist email to backend:", e.message);
+      }
+    }
     return email;
   },
 

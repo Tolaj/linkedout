@@ -1,4 +1,4 @@
-import { isGmailConnected, searchInboxEmails, parseGmailMessage, getUserEmail } from "./gmail";
+import { isGmailConnected, restoreGmail, searchInboxEmails, parseGmailMessage, getUserEmail } from "./gmail";
 import useEmailStore from "../stores/useEmailStore";
 import useAppStore from "../stores/useAppStore";
 import { triageEmail, analyzeEmail } from "./llm";
@@ -69,7 +69,9 @@ async function trackEmail(addEmail, parsed, app) {
 }
 
 export async function syncInboundEmails(onProgress) {
-  if (syncing || !isGmailConnected()) return { added: 0, created: 0, updated: 0 };
+  if (syncing) return { added: 0, created: 0, updated: 0 };
+  if (!isGmailConnected()) await restoreGmail();
+  if (!isGmailConnected()) return { added: 0, created: 0, updated: 0 };
   syncing = true;
   const result = { added: 0, created: 0, updated: 0 };
   try {

@@ -211,3 +211,14 @@ export async function deleteFile(subPath) {
   }
   await dir.removeEntry(fileName);
 }
+
+export async function deleteDirectory(subPath) {
+  if (!rootHandle) throw new Error("No root directory selected");
+  const parts = subPath.split("/").filter(Boolean);
+  const dirName = parts.pop();
+  let parent = rootHandle;
+  for (const part of parts) {
+    parent = await parent.getDirectoryHandle(part);
+  }
+  await parent.removeEntry(dirName, { recursive: true });
+}
