@@ -1,7 +1,14 @@
 const SCOPES = "https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 
-let tokenClient = null;
-let accessToken = null;
+let codeClient = null;
+let accessToken = localStorage.getItem("gmail_access_token") || null;
+let refreshing = null;
+
+function getAuthHeaders() {
+  const token = localStorage.getItem("linkedout_token");
+  return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+}
 
 function trackGmailCall(type) {
   const today = new Date().toISOString().slice(0, 10);
@@ -38,45 +45,126 @@ export function initGmail() {
   const clientId = getClientId();
   if (!clientId || !window.google?.accounts?.oauth2) return;
 
-  tokenClient = window.google.accounts.oauth2.initTokenClient({
+  codeClient = window.google.accounts.oauth2.initCodeClient({
     client_id: clientId,
     scope: SCOPES,
-    callback: (response) => {
-      if (response.access_token) {
-        accessToken = response.access_token;
-      }
-    },
+    ux_mode: "popup",
+    callback: () => {},
   });
+}
+
+// Try to restore connection using backend refresh token
+export async function restoreGmail() {
+  if (accessToken) return true;
+  const clientId = getClientId();
+  if (!clientId) return false;
+  try {
+    const res = await fetch(`${API_URL}/gmail/token?clientId=${encodeURIComponent(clientId)}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    accessToken = data.accessToken;
+    localStorage.setItem("gmail_access_token", accessToken);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Refresh access token via backend
+async function refreshAccessToken() {
+  if (refreshing) return refreshing;
+  refreshing = (async () => {
+    const clientId = getClientId();
+    if (!clientId) throw new Error("No Google Client ID");
+    const res = await fetch(`${API_URL}/gmail/token?clientId=${encodeURIComponent(clientId)}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      accessToken = null;
+      localStorage.removeItem("gmail_access_token");
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Failed to refresh Gmail token");
+    }
+    const data = await res.json();
+    accessToken = data.accessToken;
+    localStorage.setItem("gmail_access_token", accessToken);
+    return accessToken;
+  })();
+  try {
+    return await refreshing;
+  } finally {
+    refreshing = null;
+  }
+}
+
+// Gmail API fetch wrapper with auto-refresh on 401
+async function gmailFetch(url, options = {}) {
+  const doFetch = (token) =>
+    fetch(url, { ...options, headers: { ...options.headers, Authorization: `Bearer ${token}` } });
+
+  let res = await doFetch(accessToken);
+  if (res.status === 401) {
+    try {
+      const newToken = await refreshAccessToken();
+      res = await doFetch(newToken);
+    } catch {
+      return res;
+    }
+  }
+  return res;
 }
 
 export function connectGmail() {
   return new Promise((resolve, reject) => {
-    if (!tokenClient) {
-      initGmail();
-    }
-    if (!tokenClient) {
+    if (!codeClient) initGmail();
+    if (!codeClient) {
       reject(new Error("Google client not initialized. Set Client ID in Settings."));
       return;
     }
-    const original = tokenClient.callback;
-    tokenClient.callback = (response) => {
-      if (response.access_token) {
-        accessToken = response.access_token;
-        resolve(response.access_token);
-      } else {
-        reject(new Error("Failed to get access token"));
+
+    codeClient.callback = async (response) => {
+      if (response.error) {
+        reject(new Error(response.error));
+        return;
       }
-      tokenClient.callback = original;
+      try {
+        const res = await fetch(`${API_URL}/gmail/connect`, {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ code: response.code, clientId: getClientId() }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          reject(new Error(err.error || "Failed to connect Gmail"));
+          return;
+        }
+        const data = await res.json();
+        accessToken = data.accessToken;
+        localStorage.setItem("gmail_access_token", accessToken);
+        resolve(accessToken);
+      } catch (e) {
+        reject(e);
+      }
     };
-    tokenClient.requestAccessToken({ prompt: "consent" });
+
+    codeClient.requestCode();
   });
 }
 
-export function disconnectGmail() {
+export async function disconnectGmail() {
   if (accessToken) {
-    window.google?.accounts?.oauth2?.revoke?.(accessToken);
+    window.google?.accounts?.oauth2?.revoke?.(accessToken, () => {});
   }
   accessToken = null;
+  localStorage.removeItem("gmail_access_token");
+  try {
+    await fetch(`${API_URL}/gmail/disconnect`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+  } catch {}
 }
 
 function buildRawEmail({ to, subject, body, from }) {
@@ -100,17 +188,14 @@ export async function sendEmail({ to, subject, body }) {
   trackGmailCall("sent");
 
   const raw = buildRawEmail({ to, subject, body });
-  const res = await fetch("https://www.googleapis.com/gmail/v1/users/me/messages/send", {
+  const res = await gmailFetch("https://www.googleapis.com/gmail/v1/users/me/messages/send", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ raw }),
   });
 
   if (!res.ok) {
-    const err = await res.json();
+    const err = await res.json().catch(() => ({}));
     throw new Error(err.error?.message || "Failed to send email");
   }
   return res.json();
@@ -118,9 +203,7 @@ export async function sendEmail({ to, subject, body }) {
 
 export async function getUserEmail() {
   if (!accessToken) return null;
-  const res = await fetch("https://www.googleapis.com/gmail/v1/users/me/profile", {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const res = await gmailFetch("https://www.googleapis.com/gmail/v1/users/me/profile");
   if (!res.ok) return null;
   const data = await res.json();
   return data.emailAddress;
@@ -128,9 +211,7 @@ export async function getUserEmail() {
 
 export async function checkForReplies(threadId) {
   if (!accessToken || !threadId) return [];
-  const res = await fetch(`https://www.googleapis.com/gmail/v1/users/me/threads/${threadId}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const res = await gmailFetch(`https://www.googleapis.com/gmail/v1/users/me/threads/${threadId}`);
   if (!res.ok) return [];
   const data = await res.json();
   return data.messages || [];
@@ -140,9 +221,8 @@ export async function searchInboxEmails(query, maxResults = 50) {
   if (!accessToken) return [];
   trackGmailCall("read");
   const q = encodeURIComponent(query);
-  const res = await fetch(
-    `https://www.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=${maxResults}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
+  const res = await gmailFetch(
+    `https://www.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=${maxResults}`
   );
   if (!res.ok) return [];
   const data = await res.json();
@@ -150,9 +230,8 @@ export async function searchInboxEmails(query, maxResults = 50) {
 
   const details = await Promise.all(
     data.messages.map(async (m) => {
-      const r = await fetch(
-        `https://www.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
+      const r = await gmailFetch(
+        `https://www.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`
       );
       if (!r.ok) return null;
       return r.json();

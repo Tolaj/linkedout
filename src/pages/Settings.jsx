@@ -12,6 +12,7 @@ import db from "../services/offlineDb";
 export default function Settings() {
   const settings = useSettingsStore();
   const [clientIdInput, setClientIdInput] = useState(settings.googleClientId);
+  const [clientSecretInput, setClientSecretInput] = useState(settings.googleClientSecret);
   const [gmailConnected, setGmailConnected] = useState(isGmailConnected());
   const [message, setMessage] = useState("");
   const [showGmailGuide, setShowGmailGuide] = useState(false);
@@ -28,10 +29,11 @@ export default function Settings() {
     return () => clearInterval(interval);
   }, []);
 
-  function saveClientId() {
+  function saveGoogleCredentials() {
     settings.setGoogleClientId(clientIdInput);
+    settings.setGoogleClientSecret(clientSecretInput);
     initGmail();
-    setMessage("Google Client ID saved.");
+    setMessage("Google credentials saved.");
     setTimeout(() => setMessage(""), 3000);
   }
 
@@ -46,8 +48,8 @@ export default function Settings() {
     setTimeout(() => setMessage(""), 3000);
   }
 
-  function handleDisconnectGmail() {
-    disconnectGmail();
+  async function handleDisconnectGmail() {
+    await disconnectGmail();
     setGmailConnected(false);
     setMessage("Gmail disconnected.");
     setTimeout(() => setMessage(""), 3000);
@@ -169,7 +171,7 @@ export default function Settings() {
                 <li>Navigate to <strong>APIs & Services → Library</strong> → search & enable <strong>Gmail API</strong></li>
                 <li>Go to <strong>APIs & Services → Credentials</strong> → click <strong>Create Credentials → OAuth Client ID</strong></li>
                 <li>Choose <strong>Web application</strong>, add <code className="bg-base-700 px-1 py-0.5 rounded text-[11px]">https://linkedout.swapniljadhav.com</code> and <code className="bg-base-700 px-1 py-0.5 rounded text-[11px]">http://localhost:5173</code> to Authorized JavaScript origins</li>
-                <li>Copy the <strong>Client ID</strong> (ends with <code className="bg-base-700 px-1 py-0.5 rounded text-[11px]">.apps.googleusercontent.com</code>)</li>
+                <li>Copy the <strong>Client ID</strong> (ends with <code className="bg-base-700 px-1 py-0.5 rounded text-[11px]">.apps.googleusercontent.com</code>) and <strong>Client Secret</strong></li>
                 <li>You may also need to configure the <strong>OAuth consent screen</strong> (set to External, add your email as a test user)</li>
               </ol>
             </div>
@@ -184,9 +186,19 @@ export default function Settings() {
               placeholder="xxxx.apps.googleusercontent.com"
             />
           </div>
+          <div>
+            <label className="text-[11px] text-base-300 mb-1 block">Google OAuth Client Secret</label>
+            <input
+              type="password"
+              value={clientSecretInput}
+              onChange={(e) => setClientSecretInput(e.target.value)}
+              className="input"
+              placeholder="GOCSPX-..."
+            />
+          </div>
           <div className="flex gap-2">
-            <button onClick={saveClientId} className="bg-accent text-accent-dark text-sm font-medium px-4 py-2 rounded-md hover:bg-accent-light transition-colors">
-              Save Client ID
+            <button onClick={saveGoogleCredentials} className="bg-accent text-accent-dark text-sm font-medium px-4 py-2 rounded-md hover:bg-accent-light transition-colors">
+              Save Credentials
             </button>
             {isGmailConfigured() && !gmailConnected && (
               <button onClick={handleConnectGmail} className="bg-base-600 text-base-100 text-sm px-4 py-2 rounded-md hover:bg-base-500 transition-colors">

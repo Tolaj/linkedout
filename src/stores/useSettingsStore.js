@@ -2,14 +2,14 @@ import { create } from "zustand";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 
-async function syncFolderToBackend(name) {
+async function syncSettingsToBackend(data) {
   try {
     const token = localStorage.getItem("linkedout_token");
     if (!token) return;
     await fetch(`${API_URL}/auth/settings`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ folderName: name }),
+      body: JSON.stringify(data),
     });
   } catch {}
 }
@@ -26,6 +26,7 @@ function saveFolders(folders) {
 
 const useSettingsStore = create((set, get) => ({
   googleClientId: localStorage.getItem("google_client_id") || "",
+  googleClientSecret: localStorage.getItem("google_client_secret") || "",
   folderName: localStorage.getItem("linkedout_folder") || "",
   folders: loadFolders(),
   llmApiKey: localStorage.getItem("linkedout_llm_key") || "",
@@ -35,6 +36,12 @@ const useSettingsStore = create((set, get) => ({
   setGoogleClientId: (id) => {
     localStorage.setItem("google_client_id", id);
     set({ googleClientId: id });
+  },
+
+  setGoogleClientSecret: (secret) => {
+    localStorage.setItem("google_client_secret", secret);
+    set({ googleClientSecret: secret });
+    syncSettingsToBackend({ googleClientSecret: secret });
   },
 
   setLlmApiKey: (key) => {
@@ -58,7 +65,7 @@ const useSettingsStore = create((set, get) => ({
     const updated = folders.includes(name) ? folders : [...folders, name];
     saveFolders(updated);
     set({ folderName: name, folders: updated });
-    syncFolderToBackend(name);
+    syncSettingsToBackend({ folderName: name });
   },
 
   removeFolder: (name) => {
@@ -67,7 +74,7 @@ const useSettingsStore = create((set, get) => ({
     if (get().folderName === name) {
       localStorage.removeItem("linkedout_folder");
       set({ folderName: "", folders });
-      syncFolderToBackend("");
+      syncSettingsToBackend({ folderName: "" });
     } else {
       set({ folders });
     }
