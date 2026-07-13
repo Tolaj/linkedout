@@ -61,6 +61,20 @@ const ANALYZE_TOOLS = [
   {
     type: "function",
     function: {
+      name: "not_application",
+      description: "This email is NOT a direct application confirmation or status update — it is a newsletter, job alert, marketing, or irrelevant email.",
+      parameters: {
+        type: "object",
+        properties: {
+          reason: { type: "string", description: "Brief reason" },
+        },
+        required: ["reason"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "update_application_stage",
       description: "Update the stage of an existing application based on email content.",
       parameters: {
@@ -119,7 +133,16 @@ export async function triageEmail(from, subject) {
   const config = getConfig();
   if (!config) return null;
   return callLlm(config, [
-    { role: "system", content: "You decide if an email is related to a job application. You MUST call exactly one tool." },
+    { role: "system", content: `You decide if an email is a DIRECT response to a specific job the user applied to — like an application confirmation, interview invite, screening update, offer, or rejection for a SPECIFIC role at a SPECIFIC company.
+
+Mark as NOT application:
+- Job board newsletters, resume tips, career advice, marketing emails
+- Mass emails from job platforms (LinkedIn, Indeed, Glassdoor, Ladders, ZipRecruiter, etc.)
+- Emails about "new jobs matching your profile" or job alerts
+- Promotional emails even if job-related
+
+Only mark as application_email if the subject clearly references a specific company AND role the user applied to.
+You MUST call exactly one tool.` },
     { role: "user", content: `From: ${from}\nSubject: ${subject}` },
   ], TRIAGE_TOOLS);
 }
@@ -140,14 +163,16 @@ EXISTING APPLICATIONS:
 ${appList || "(none)"}
 
 RULES:
-1. If this is a NEW application confirmation for a company+role not in the list → use create_application
-2. If this matches an EXISTING application with a status update → use update_application_stage
+1. REJECT (call not_application) if this is a newsletter, job alert, marketing, resume tip, career advice, or mass email from a job platform — even if job-related
+2. If this is a NEW application confirmation for a company+role not in the list → use create_application
+3. If this matches an EXISTING application with a status update → use update_application_stage
    - Interview scheduled → Interviewing
    - Under review/screening → Screening
    - Offer/congratulations → Offer
    - Rejection/not moving forward → Rejected
-3. NEVER create a duplicate — match by company name (ignore Inc/LLC/Corp)
-4. Extract clean company name and exact role title
+4. NEVER create a duplicate — match by company name (ignore Inc/LLC/Corp)
+5. Extract clean company name and exact role title
+6. If unsure whether it's a real application vs marketing, default to NOT creating an application
 
 You MUST call exactly one tool.` },
     { role: "user", content: `From: ${emailData.from}\nSubject: ${emailData.subject}\nSnippet: ${emailData.snippet}` },

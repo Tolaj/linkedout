@@ -8,7 +8,7 @@ export default function FormModal({ app, onClose }) {
   const isEdit = !!app;
   const { addApp, updateApp, deleteApp } = useAppStore();
   const resumes = useResumeStore((s) => s.resumes);
-  const [form, setForm] = useState(app ? { ...EMPTY_APP, ...app } : { ...EMPTY_APP });
+  const [form, setForm] = useState(app ? { ...EMPTY_APP, ...app } : { ...EMPTY_APP, dateApplied: new Date().toISOString().slice(0, 10) });
 
   function set(k, v) {
     setForm((f) => ({ ...f, [k]: v }));

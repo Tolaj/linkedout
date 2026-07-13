@@ -105,6 +105,7 @@ export async function syncInboundEmails(onProgress) {
 
       const matchedApp = matchAppForSender(parsed.from, apps);
       if (matchedApp) {
+        if (matchedApp.dateApplied && parsed.date && parsed.date.slice(0, 10) < matchedApp.dateApplied.slice(0, 10)) continue;
         await trackEmail(addEmail, parsed, matchedApp);
         result.added++;
       } else if (llmActive && !skippedIds.has(parsed.gmailId)) {
