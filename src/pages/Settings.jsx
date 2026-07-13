@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Mail, FolderOpen, Download, Upload, CheckCircle, AlertCircle, Info, ChevronDown, ChevronUp, Trash2, Plus } from "lucide-react";
+import { Mail, FolderOpen, Download, Upload, CheckCircle, AlertCircle, Info, ChevronDown, ChevronUp, Trash2, Plus, Brain, Power } from "lucide-react";
 
 import useSettingsStore from "../stores/useSettingsStore";
 import useAppStore from "../stores/useAppStore";
@@ -14,6 +14,8 @@ export default function Settings() {
   const [gmailConnected, setGmailConnected] = useState(isGmailConnected());
   const [message, setMessage] = useState("");
   const [showGmailGuide, setShowGmailGuide] = useState(false);
+  const [llmKeyInput, setLlmKeyInput] = useState(settings.llmApiKey);
+  const [showLlmGuide, setShowLlmGuide] = useState(false);
 
   function saveClientId() {
     settings.setGoogleClientId(clientIdInput);
@@ -240,6 +242,120 @@ export default function Settings() {
                 Add workspace
               </button>
             </>
+          )}
+        </div>
+      </Section>
+
+      {/* LLM */}
+      <Section icon={Brain} title="Email Intelligence (LLM)">
+        <div className="space-y-4">
+          <button
+            onClick={() => setShowLlmGuide(!showLlmGuide)}
+            className="flex items-center gap-2 text-xs text-base-300 hover:text-base-100 transition-colors w-full"
+          >
+            <Info className="w-3.5 h-3.5 text-[#2563EB]" />
+            <span>How to get a free API key</span>
+            {showLlmGuide ? <ChevronUp className="w-3 h-3 ml-auto" /> : <ChevronDown className="w-3 h-3 ml-auto" />}
+          </button>
+
+          {showLlmGuide && (
+            <div className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg p-4 text-xs text-base-200 space-y-3">
+              <p className="font-medium text-base-100">Cerebras (recommended)</p>
+              <ol className="list-decimal list-inside space-y-2 text-base-300">
+                <li>Go to <strong>cloud.cerebras.ai</strong> → sign up for a free account</li>
+                <li>Navigate to <strong>API keys</strong> in the left sidebar</li>
+                <li>Click <strong>Create API Key</strong> → give it a name</li>
+                <li>Copy the key (starts with <code className="bg-base-700 px-1 py-0.5 rounded text-[11px]">csk-</code>)</li>
+                <li>Free tier: <strong>2,400 requests/day</strong>, <strong>1M tokens/day</strong></li>
+              </ol>
+              <hr className="border-[#BFDBFE]" />
+              <p className="font-medium text-base-100">Groq (alternative)</p>
+              <ol className="list-decimal list-inside space-y-2 text-base-300">
+                <li>Go to <strong>console.groq.com</strong> → sign up for a free account</li>
+                <li>Navigate to <strong>API Keys</strong></li>
+                <li>Click <strong>Create API Key</strong></li>
+                <li>Copy the key (starts with <code className="bg-base-700 px-1 py-0.5 rounded text-[11px]">gsk_</code>)</li>
+                <li>Free tier: <strong>30 RPM</strong>, <strong>100K tokens/day</strong></li>
+              </ol>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Enable AI email analysis</p>
+              <p className="text-xs text-base-400 mt-0.5">
+                Auto-create applications and update stages from incoming emails
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                const next = !settings.llmEnabled;
+                settings.setLlmEnabled(next);
+                setMessage(next ? "LLM enabled" : "LLM disabled");
+                setTimeout(() => setMessage(""), 3000);
+              }}
+              className={`relative w-11 h-6 rounded-full transition-colors ${
+                settings.llmEnabled ? "bg-accent" : "bg-base-600"
+              }`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                settings.llmEnabled ? "translate-x-5" : ""
+              }`} />
+            </button>
+          </div>
+
+          <div>
+            <label className="text-[11px] text-base-300 mb-1 block">Provider</label>
+            <select
+              value={settings.llmProvider}
+              onChange={(e) => settings.setLlmProvider(e.target.value)}
+              className="input w-full max-w-xs"
+            >
+              <option value="cerebras">Cerebras (GPT-OSS 120B)</option>
+              <option value="groq">Groq (Llama 3.3 70B)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[11px] text-base-300 mb-1 block">API Key</label>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={llmKeyInput}
+                onChange={(e) => setLlmKeyInput(e.target.value)}
+                className="input flex-1"
+                placeholder={settings.llmProvider === "cerebras" ? "csk-..." : "gsk_..."}
+              />
+              <button
+                onClick={() => {
+                  settings.setLlmApiKey(llmKeyInput);
+                  setMessage("API key saved.");
+                  setTimeout(() => setMessage(""), 3000);
+                }}
+                className="bg-accent text-accent-dark text-sm font-medium px-4 py-2 rounded-md hover:bg-accent-light transition-colors"
+              >
+                Save
+              </button>
+            </div>
+            <p className="text-[10px] text-base-400 mt-1">
+              Stored in localStorage. Get a free key from{" "}
+              {settings.llmProvider === "cerebras" ? (
+                <span className="text-base-300">cloud.cerebras.ai</span>
+              ) : (
+                <span className="text-base-300">console.groq.com</span>
+              )}
+            </p>
+          </div>
+
+          {settings.llmEnabled && settings.llmApiKey && (
+            <div className="flex items-center gap-1.5 text-xs text-[#16A34A]">
+              <Power className="w-3 h-3" /> Active — emails will be analyzed during sync
+            </div>
+          )}
+          {settings.llmEnabled && !settings.llmApiKey && (
+            <div className="flex items-center gap-1.5 text-xs text-[#D97706]">
+              <AlertCircle className="w-3 h-3" /> Enabled but no API key set
+            </div>
           )}
         </div>
       </Section>

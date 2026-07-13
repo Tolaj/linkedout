@@ -36,8 +36,12 @@ export default function Applications() {
 
   useEffect(() => {
     if (loaded && isGmailConnected()) {
-      syncInboundEmails().then((n) => {
-        if (n > 0) setSyncMsg(`${n} new email${n > 1 ? "s" : ""} synced`);
+      syncInboundEmails().then((r) => {
+        const parts = [];
+        if (r.added) parts.push(`${r.added} email${r.added > 1 ? "s" : ""}`);
+        if (r.created) parts.push(`${r.created} app${r.created > 1 ? "s" : ""} created`);
+        if (r.updated) parts.push(`${r.updated} stage${r.updated > 1 ? "s" : ""} updated`);
+        if (parts.length) setSyncMsg(parts.join(", "));
       });
     }
   }, [loaded]);
@@ -46,6 +50,22 @@ export default function Applications() {
 
   function toggleExpand(id) {
     setExpandedId((prev) => (prev === id ? null : id));
+  }
+
+  async function handleSync() {
+    if (!isGmailConnected()) {
+      try { await connectGmail(); } catch { return; }
+    }
+    setSyncing(true);
+    setSyncMsg("");
+    const r = await syncInboundEmails((msg) => setSyncMsg(msg));
+    const parts = [];
+    if (r.added) parts.push(`${r.added} email${r.added > 1 ? "s" : ""}`);
+    if (r.created) parts.push(`${r.created} app${r.created > 1 ? "s" : ""} created`);
+    if (r.updated) parts.push(`${r.updated} stage${r.updated > 1 ? "s" : ""} updated`);
+    setSyncMsg(parts.length ? parts.join(", ") : "No new emails");
+    setSyncing(false);
+    setTimeout(() => setSyncMsg(""), 5000);
   }
 
   return (
@@ -60,17 +80,7 @@ export default function Applications() {
             <span className="text-xs text-green-400">{syncMsg}</span>
           )}
           <button
-            onClick={async () => {
-              if (!isGmailConnected()) {
-                try { await connectGmail(); } catch { return; }
-              }
-              setSyncing(true);
-              setSyncMsg("");
-              const n = await syncInboundEmails();
-              setSyncing(false);
-              setSyncMsg(n > 0 ? `${n} new email${n > 1 ? "s" : ""} synced` : "No new emails");
-              setTimeout(() => setSyncMsg(""), 5000);
-            }}
+            onClick={handleSync}
             disabled={syncing}
             className="flex items-center gap-2 bg-base-600 text-base-100 text-sm px-4 py-2.5 rounded-md hover:bg-base-500 transition-colors disabled:opacity-50"
             title="Sync incoming emails from Gmail"

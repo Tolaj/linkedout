@@ -28,10 +28,28 @@ const useSettingsStore = create((set, get) => ({
   googleClientId: localStorage.getItem("google_client_id") || "",
   folderName: localStorage.getItem("linkedout_folder") || "",
   folders: loadFolders(),
+  llmApiKey: localStorage.getItem("linkedout_llm_key") || "",
+  llmEnabled: localStorage.getItem("linkedout_llm_enabled") === "true",
+  llmProvider: localStorage.getItem("linkedout_llm_provider") || "cerebras",
 
   setGoogleClientId: (id) => {
     localStorage.setItem("google_client_id", id);
     set({ googleClientId: id });
+  },
+
+  setLlmApiKey: (key) => {
+    localStorage.setItem("linkedout_llm_key", key);
+    set({ llmApiKey: key });
+  },
+
+  setLlmEnabled: (enabled) => {
+    localStorage.setItem("linkedout_llm_enabled", String(enabled));
+    set({ llmEnabled: enabled });
+  },
+
+  setLlmProvider: (provider) => {
+    localStorage.setItem("linkedout_llm_provider", provider);
+    set({ llmProvider: provider });
   },
 
   setFolderName: (name) => {
