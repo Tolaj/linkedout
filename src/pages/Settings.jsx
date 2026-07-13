@@ -1,11 +1,12 @@
-import { useState } from "react";
-import { Mail, FolderOpen, Download, Upload, CheckCircle, AlertCircle, Info, ChevronDown, ChevronUp, Trash2, Plus, Brain, Power } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Mail, FolderOpen, Download, Upload, CheckCircle, AlertCircle, Info, ChevronDown, ChevronUp, Trash2, Plus, Brain, Power, BarChart3 } from "lucide-react";
 
 import useSettingsStore from "../stores/useSettingsStore";
 import useAppStore from "../stores/useAppStore";
 import useResumeStore from "../stores/useResumeStore";
-import { isGmailConnected, connectGmail, disconnectGmail, initGmail, isGmailConfigured } from "../services/gmail";
+import { isGmailConnected, connectGmail, disconnectGmail, initGmail, isGmailConfigured, getGmailUsage } from "../services/gmail";
 import { isFileSystemSupported, selectRootDirectory, createFolderStructure, switchToFolder, removeFolderHandle } from "../services/fileSystem";
+import { getLlmUsage } from "../services/llm";
 import db from "../services/offlineDb";
 
 export default function Settings() {
@@ -16,6 +17,16 @@ export default function Settings() {
   const [showGmailGuide, setShowGmailGuide] = useState(false);
   const [llmKeyInput, setLlmKeyInput] = useState(settings.llmApiKey);
   const [showLlmGuide, setShowLlmGuide] = useState(false);
+  const [gmailUsage, setGmailUsage] = useState(getGmailUsage());
+  const [llmUsage, setLlmUsage] = useState(getLlmUsage());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setGmailUsage(getGmailUsage());
+      setLlmUsage(getLlmUsage());
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   function saveClientId() {
     settings.setGoogleClientId(clientIdInput);
@@ -360,6 +371,75 @@ export default function Settings() {
         </div>
       </Section>
 
+      {/* API Usage */}
+      <Section icon={BarChart3} title="API Usage">
+        <div className="space-y-4">
+          {/* Gmail usage */}
+          <div>
+            <p className="text-sm font-medium mb-2">Gmail API</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-base-800 rounded-md px-3 py-2">
+                <p className="text-[10px] text-base-400 uppercase tracking-wide">Emails sent today</p>
+                <p className="text-lg font-semibold mt-0.5">{gmailUsage.sent}</p>
+              </div>
+              <div className="bg-base-800 rounded-md px-3 py-2">
+                <p className="text-[10px] text-base-400 uppercase tracking-wide">Sync calls today</p>
+                <p className="text-lg font-semibold mt-0.5">{gmailUsage.read}</p>
+              </div>
+            </div>
+            <p className="text-[10px] text-base-400 mt-1.5">
+              Counts from this app only. Resets daily at midnight.
+            </p>
+          </div>
+
+          {/* LLM usage */}
+          <div>
+            <p className="text-sm font-medium mb-2">
+              LLM API {settings.llmProvider === "cerebras" ? "(Cerebras)" : "(Groq)"}
+            </p>
+            {llmUsage ? (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  {llmUsage.requestLimit != null && (
+                    <div className="bg-base-800 rounded-md px-3 py-2">
+                      <p className="text-[10px] text-base-400 uppercase tracking-wide">Requests</p>
+                      <p className="text-lg font-semibold mt-0.5">
+                        <span className={llmUsage.requestRemaining < llmUsage.requestLimit * 0.1 ? "text-[#DC2626]" : ""}>
+                          {llmUsage.requestRemaining?.toLocaleString()}
+                        </span>
+                        <span className="text-sm text-base-400 font-normal"> / {llmUsage.requestLimit?.toLocaleString()}</span>
+                      </p>
+                      {llmUsage.requestReset && (
+                        <p className="text-[10px] text-base-400 mt-0.5">Resets: {formatReset(llmUsage.requestReset)}</p>
+                      )}
+                    </div>
+                  )}
+                  {llmUsage.tokenLimit != null && (
+                    <div className="bg-base-800 rounded-md px-3 py-2">
+                      <p className="text-[10px] text-base-400 uppercase tracking-wide">Tokens</p>
+                      <p className="text-lg font-semibold mt-0.5">
+                        <span className={llmUsage.tokenRemaining < llmUsage.tokenLimit * 0.1 ? "text-[#DC2626]" : ""}>
+                          {formatTokens(llmUsage.tokenRemaining)}
+                        </span>
+                        <span className="text-sm text-base-400 font-normal"> / {formatTokens(llmUsage.tokenLimit)}</span>
+                      </p>
+                      {llmUsage.tokenReset && (
+                        <p className="text-[10px] text-base-400 mt-0.5">Resets: {formatReset(llmUsage.tokenReset)}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <p className="text-[10px] text-base-400 mt-1.5">
+                  From API response headers. Updated: {new Date(llmUsage.updatedAt).toLocaleTimeString()}
+                </p>
+              </>
+            ) : (
+              <p className="text-xs text-base-400">No usage data yet — data appears after first LLM call.</p>
+            )}
+          </div>
+        </div>
+      </Section>
+
       {/* Import/Export */}
       <Section icon={Download} title="Backup & Restore">
         <div className="flex gap-3">
@@ -376,6 +456,29 @@ export default function Settings() {
       </Section>
     </div>
   );
+}
+
+function formatTokens(n) {
+  if (n == null) return "—";
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+  if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
+  return n.toLocaleString();
+}
+
+function formatReset(val) {
+  if (!val) return "";
+  const d = new Date(val);
+  if (!isNaN(d.getTime())) return d.toLocaleTimeString();
+  const match = val.match(/^(\d+(\.\d+)?)(ms|s|m|h)$/);
+  if (match) {
+    const [, num, , unit] = match;
+    const n = parseFloat(num);
+    if (unit === "ms") return n < 1000 ? `${Math.round(n)}ms` : `${(n / 1000).toFixed(0)}s`;
+    if (unit === "s") return n < 60 ? `${Math.round(n)}s` : `${(n / 60).toFixed(0)}m`;
+    if (unit === "m") return `${Math.round(n)}m`;
+    if (unit === "h") return `${Math.round(n)}h`;
+  }
+  return val;
 }
 
 function Section({ icon: Icon, title, children }) {

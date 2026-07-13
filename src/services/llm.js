@@ -102,6 +102,32 @@ function getConfig() {
   return { ...config, apiKey };
 }
 
+function captureRateLimits(res) {
+  const get = (name) => res.headers.get(name);
+  const usage = {};
+  const limitReq = get("x-ratelimit-limit-requests");
+  const remainReq = get("x-ratelimit-remaining-requests");
+  const resetReq = get("x-ratelimit-reset-requests");
+  const limitTok = get("x-ratelimit-limit-tokens");
+  const remainTok = get("x-ratelimit-remaining-tokens");
+  const resetTok = get("x-ratelimit-reset-tokens");
+  if (limitReq != null) usage.requestLimit = parseInt(limitReq, 10);
+  if (remainReq != null) usage.requestRemaining = parseInt(remainReq, 10);
+  if (resetReq != null) usage.requestReset = resetReq;
+  if (limitTok != null) usage.tokenLimit = parseInt(limitTok, 10);
+  if (remainTok != null) usage.tokenRemaining = parseInt(remainTok, 10);
+  if (resetTok != null) usage.tokenReset = resetTok;
+  if (Object.keys(usage).length > 0) {
+    usage.updatedAt = new Date().toISOString();
+    localStorage.setItem("linkedout_llm_usage", JSON.stringify(usage));
+  }
+}
+
+export function getLlmUsage() {
+  try { return JSON.parse(localStorage.getItem("linkedout_llm_usage") || "null"); }
+  catch { return null; }
+}
+
 async function callLlm(config, messages, tools) {
   const res = await fetch(config.url, {
     method: "POST",
@@ -117,6 +143,7 @@ async function callLlm(config, messages, tools) {
       temperature: 0,
     }),
   });
+  captureRateLimits(res);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error?.message || `LLM API error: ${res.status}`);

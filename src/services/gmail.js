@@ -3,6 +3,25 @@ const SCOPES = "https://www.googleapis.com/auth/gmail.send https://www.googleapi
 let tokenClient = null;
 let accessToken = null;
 
+function trackGmailCall(type) {
+  const today = new Date().toISOString().slice(0, 10);
+  let usage;
+  try { usage = JSON.parse(localStorage.getItem("linkedout_gmail_usage") || "{}"); }
+  catch { usage = {}; }
+  if (usage.date !== today) usage = { date: today, sent: 0, read: 0 };
+  usage[type] = (usage[type] || 0) + 1;
+  localStorage.setItem("linkedout_gmail_usage", JSON.stringify(usage));
+}
+
+export function getGmailUsage() {
+  try {
+    const usage = JSON.parse(localStorage.getItem("linkedout_gmail_usage") || "{}");
+    const today = new Date().toISOString().slice(0, 10);
+    if (usage.date !== today) return { date: today, sent: 0, read: 0 };
+    return usage;
+  } catch { return { date: new Date().toISOString().slice(0, 10), sent: 0, read: 0 }; }
+}
+
 export function getClientId() {
   return localStorage.getItem("google_client_id") || "";
 }
@@ -78,6 +97,7 @@ function buildRawEmail({ to, subject, body, from }) {
 
 export async function sendEmail({ to, subject, body }) {
   if (!accessToken) throw new Error("Gmail not connected");
+  trackGmailCall("sent");
 
   const raw = buildRawEmail({ to, subject, body });
   const res = await fetch("https://www.googleapis.com/gmail/v1/users/me/messages/send", {
@@ -118,6 +138,7 @@ export async function checkForReplies(threadId) {
 
 export async function searchInboxEmails(query, maxResults = 50) {
   if (!accessToken) return [];
+  trackGmailCall("read");
   const q = encodeURIComponent(query);
   const res = await fetch(
     `https://www.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=${maxResults}`,

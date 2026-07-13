@@ -98,7 +98,15 @@ export default function ColdEmails() {
         ))}
       </div>
 
-      {tab === "tracker" && <EmailTracker emails={emails.filter((e) => e.direction !== "inbound")} updateEmail={updateEmail} deleteEmail={deleteEmail} apps={useAppStore.getState().apps} />}
+      {tab === "tracker" && <EmailTracker emails={emails.filter((e) => {
+        if (e.direction !== "inbound") return true;
+        if (!e.appId) return false;
+        const app = useAppStore.getState().apps.find((a) => a.id === e.appId);
+        if (!app?.domain) return false;
+        const sender = (e.recipientEmail || "").toLowerCase();
+        return app.domain.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean)
+          .some((t) => t.includes("@") ? sender === t : sender.endsWith("@" + t));
+      })} updateEmail={updateEmail} deleteEmail={deleteEmail} apps={useAppStore.getState().apps} />}
       {tab === "templates" && (
         <TemplateList
           templates={templates}
