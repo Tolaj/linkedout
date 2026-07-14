@@ -36,6 +36,7 @@ const useSettingsStore = create((set, get) => ({
   setGoogleClientId: (id) => {
     localStorage.setItem("google_client_id", id);
     set({ googleClientId: id });
+    syncSettingsToBackend({ googleClientId: id });
   },
 
   setGoogleClientSecret: (secret) => {
@@ -47,25 +48,28 @@ const useSettingsStore = create((set, get) => ({
   setLlmApiKey: (key) => {
     localStorage.setItem("linkedout_llm_key", key);
     set({ llmApiKey: key });
+    syncSettingsToBackend({ llmApiKey: key });
   },
 
   setLlmEnabled: (enabled) => {
     localStorage.setItem("linkedout_llm_enabled", String(enabled));
     set({ llmEnabled: enabled });
+    syncSettingsToBackend({ llmEnabled: enabled });
   },
 
   setLlmProvider: (provider) => {
     localStorage.setItem("linkedout_llm_provider", provider);
     set({ llmProvider: provider });
+    syncSettingsToBackend({ llmProvider: provider });
   },
 
-  setFolderName: (name) => {
+  setFolderName: async (name) => {
     localStorage.setItem("linkedout_folder", name);
     const folders = get().folders;
     const updated = folders.includes(name) ? folders : [...folders, name];
     saveFolders(updated);
     set({ folderName: name, folders: updated });
-    syncSettingsToBackend({ folderName: name });
+    await syncSettingsToBackend({ folderName: name, folders: updated });
   },
 
   removeFolder: (name) => {
@@ -74,19 +78,45 @@ const useSettingsStore = create((set, get) => ({
     if (get().folderName === name) {
       localStorage.removeItem("linkedout_folder");
       set({ folderName: "", folders });
-      syncSettingsToBackend({ folderName: "" });
+      syncSettingsToBackend({ folderName: "", folders });
     } else {
       set({ folders });
+      syncSettingsToBackend({ folders });
     }
   },
 
   loadFromUser: (user) => {
-    if (user.folderName && !localStorage.getItem("linkedout_folder")) {
-      localStorage.setItem("linkedout_folder", user.folderName);
-      const folders = get().folders;
-      const updated = folders.includes(user.folderName) ? folders : [...folders, user.folderName];
-      saveFolders(updated);
-      set({ folderName: user.folderName, folders: updated });
+    if (!user) return;
+    const s = user.settings || user;
+
+    if (s.folderName && !localStorage.getItem("linkedout_folder")) {
+      localStorage.setItem("linkedout_folder", s.folderName);
+      set({ folderName: s.folderName });
+    }
+    if (s.folders && Array.isArray(s.folders)) {
+      const merged = [...new Set([...get().folders, ...s.folders])];
+      saveFolders(merged);
+      set({ folders: merged });
+    }
+    if (s.googleClientId) {
+      localStorage.setItem("google_client_id", s.googleClientId);
+      set({ googleClientId: s.googleClientId });
+    }
+    if (s.googleClientSecret) {
+      localStorage.setItem("google_client_secret", s.googleClientSecret);
+      set({ googleClientSecret: s.googleClientSecret });
+    }
+    if (s.llmApiKey) {
+      localStorage.setItem("linkedout_llm_key", s.llmApiKey);
+      set({ llmApiKey: s.llmApiKey });
+    }
+    if (s.llmProvider) {
+      localStorage.setItem("linkedout_llm_provider", s.llmProvider);
+      set({ llmProvider: s.llmProvider });
+    }
+    if (s.llmEnabled != null) {
+      localStorage.setItem("linkedout_llm_enabled", String(s.llmEnabled));
+      set({ llmEnabled: !!s.llmEnabled });
     }
   },
 }));

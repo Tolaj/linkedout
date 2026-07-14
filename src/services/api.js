@@ -12,8 +12,6 @@ async function request(path, options = {}) {
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
   if (!res.ok) {
     if (res.status === 401) {
-      localStorage.removeItem("linkedout_token");
-      window.location.href = "/login";
       throw new Error("Unauthorized");
     }
     const err = await res.json().catch(() => ({ error: res.statusText }));

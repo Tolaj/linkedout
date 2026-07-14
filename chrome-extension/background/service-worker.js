@@ -17,6 +17,10 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     chrome.action.setBadgeBackgroundColor({ color: "#D97706", tabId: sender.tab.id });
   }
 
+  if (msg.type === "OPEN_POPUP") {
+    chrome.action.openPopup().catch(function () {});
+  }
+
   if (msg.type === "GET_AUTH") {
     chrome.storage.local.get(["linkedout_token", "linkedout_user", "linkedout_api_url"], function (data) {
       sendResponse(data);

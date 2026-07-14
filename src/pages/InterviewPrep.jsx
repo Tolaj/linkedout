@@ -1,12 +1,16 @@
 import { useState, useEffect } from "react";
 import { BookOpen, Plus, Save, Trash2 } from "lucide-react";
-import db from "../services/offlineDb";
+import { useNavigate } from "react-router-dom";
+import NoWorkspace from "../components/NoWorkspace";
+import useNoteStore from "../stores/useNoteStore";
 import { uid } from "../lib/constants";
+import { isFileSystemSupported, hasRootDirectory } from "../services/fileSystem";
+import useSettingsStore from "../stores/useSettingsStore";
 
 const SECTIONS = ["DSA", "System Design", "Behavioral (STAR)", "Company Specific"];
 
 export default function InterviewPrep() {
-  const [notes, setNotes] = useState([]);
+  const { notes: allNotes, loaded, load, addNote, updateNote, deleteNote } = useNoteStore();
   const [selected, setSelected] = useState(null);
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
@@ -14,45 +18,44 @@ export default function InterviewPrep() {
   const [newTitle, setNewTitle] = useState("");
   const [newSection, setNewSection] = useState(SECTIONS[0]);
 
+  const hasWorkspace = isFileSystemSupported() && hasRootDirectory();
+  const navigate = useNavigate();
+  const folderName = useSettingsStore((s) => s.folderName);
+
   useEffect(() => {
-    db.notes.where("section").notEqual("application").toArray().then(setNotes);
-  }, []);
+    if (hasWorkspace) load();
+  }, [hasWorkspace, folderName, load]);
+
+  const notes = allNotes.filter((n) => n.section !== "application");
 
   function selectNote(note) {
     setSelected(note);
     setContent(note.content || "");
   }
 
-  async function saveNote() {
+  async function handleSave() {
     if (!selected) return;
     setSaving(true);
-    const updated = { ...selected, content, updatedAt: new Date().toISOString() };
-    await db.notes.put(updated);
-    setNotes((prev) => prev.map((n) => (n.id === selected.id ? updated : n)));
-    setSelected(updated);
+    const updated = await updateNote(selected.id, { content });
+    if (updated) setSelected(updated);
     setSaving(false);
   }
 
   async function createNote(e) {
     e.preventDefault();
     if (!newTitle.trim()) return;
-    const note = {
-      id: uid(),
+    const note = await addNote({
       section: newSection,
       title: newTitle,
       content: "",
-      createdAt: new Date().toISOString(),
-    };
-    await db.notes.put(note);
-    setNotes((prev) => [note, ...prev]);
+    });
     setShowNew(false);
     setNewTitle("");
     selectNote(note);
   }
 
-  async function deleteNote(id) {
-    await db.notes.delete(id);
-    setNotes((prev) => prev.filter((n) => n.id !== id));
+  async function handleDelete(id) {
+    await deleteNote(id);
     if (selected?.id === id) {
       setSelected(null);
       setContent("");
@@ -63,6 +66,18 @@ export default function InterviewPrep() {
     acc[s] = notes.filter((n) => n.section === s);
     return acc;
   }, {});
+
+  if (!hasWorkspace) {
+    return (
+      <div className="p-6 h-full flex flex-col">
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold font-mono mb-1">interview_prep</h1>
+          <p className="text-sm text-base-300">DSA, System Design, Behavioral & company-specific notes.</p>
+        </div>
+        <NoWorkspace page="prep" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 h-full flex flex-col">
@@ -97,7 +112,6 @@ export default function InterviewPrep() {
       )}
 
       <div className="flex-1 flex gap-6 min-h-0">
-        {/* Note list */}
         <div className="w-64 flex-shrink-0 overflow-y-auto space-y-4">
           {SECTIONS.map((section) => {
             const items = grouped[section];
@@ -127,18 +141,17 @@ export default function InterviewPrep() {
           )}
         </div>
 
-        {/* Editor */}
         <div className="flex-1 flex flex-col min-w-0">
           {selected ? (
             <>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-medium font-mono truncate">{selected.title}</h2>
                 <div className="flex gap-2">
-                  <button onClick={saveNote} disabled={saving} className="flex items-center gap-1 text-xs text-accent hover:text-accent-light">
+                  <button onClick={handleSave} disabled={saving} className="flex items-center gap-1 text-xs text-accent hover:text-accent-light">
                     <Save className="w-3.5 h-3.5" />
                     {saving ? "Saving..." : "Save"}
                   </button>
-                  <button onClick={() => deleteNote(selected.id)} className="text-xs text-base-400 hover:text-[#DC2626]">
+                  <button onClick={() => handleDelete(selected.id)} className="text-xs text-base-400 hover:text-[#DC2626]">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>

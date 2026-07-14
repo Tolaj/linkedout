@@ -7,7 +7,7 @@ import useResumeStore from "../stores/useResumeStore";
 import { isGmailConnected, connectGmail, disconnectGmail, initGmail, isGmailConfigured, getGmailUsage } from "../services/gmail";
 import { isFileSystemSupported, selectRootDirectory, createFolderStructure, switchToFolder, removeFolderHandle } from "../services/fileSystem";
 import { getLlmUsage } from "../services/llm";
-import db from "../services/offlineDb";
+import { api } from "../services/api";
 
 export default function Settings() {
   const settings = useSettingsStore();
@@ -99,20 +99,26 @@ export default function Settings() {
   }
 
   async function exportData() {
-    const data = {
-      applications: await db.applications.toArray(),
-      emails: await db.emails.toArray(),
-      emailTemplates: await db.emailTemplates.toArray(),
-      resumesMeta: await db.resumesMeta.toArray(),
-      notes: await db.notes.toArray(),
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `linkedout_backup_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const [applications, emails, emailTemplates, resumes, notes] = await Promise.all([
+        api.getAll("applications"),
+        api.getAll("emails"),
+        api.getAll("templates"),
+        api.getAll("resumes"),
+        api.getAll("notes"),
+      ]);
+      const data = { applications, emails, emailTemplates, resumesMeta: resumes, notes };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `linkedout_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setMessage("Failed to export. Check your connection.");
+      setTimeout(() => setMessage(""), 5000);
+    }
   }
 
   async function importData(e) {
@@ -121,11 +127,13 @@ export default function Settings() {
     try {
       const text = await file.text();
       const data = JSON.parse(text);
-      if (data.applications) await db.applications.bulkPut(data.applications);
-      if (data.emails) await db.emails.bulkPut(data.emails);
-      if (data.emailTemplates) await db.emailTemplates.bulkPut(data.emailTemplates);
-      if (data.resumesMeta) await db.resumesMeta.bulkPut(data.resumesMeta);
-      if (data.notes) await db.notes.bulkPut(data.notes);
+      const imports = [];
+      if (data.applications) imports.push(api.sync("applications", data.applications));
+      if (data.emails) imports.push(api.sync("emails", data.emails));
+      if (data.emailTemplates) imports.push(api.sync("templates", data.emailTemplates));
+      if (data.resumesMeta) imports.push(api.sync("resumes", data.resumesMeta));
+      if (data.notes) imports.push(api.sync("notes", data.notes));
+      await Promise.all(imports);
       setMessage("Data imported! Refresh to see changes.");
     } catch {
       setMessage("Failed to import. Check file format.");
@@ -251,13 +259,15 @@ export default function Settings() {
                           <span className="text-[10px] bg-accent/20 text-accent px-1.5 py-0.5 rounded-full font-medium">active</span>
                         )}
                       </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleRemoveFolder(name); }}
-                        className="text-base-400 hover:text-[#DC2626] transition-colors p-1"
-                        title="Remove workspace"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+                      {name !== settings.folderName && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleRemoveFolder(name); }}
+                          className="text-base-400 hover:text-[#DC2626] transition-colors p-1"
+                          title="Remove workspace"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>

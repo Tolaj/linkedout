@@ -3,6 +3,28 @@ import useSettingsStore from "./useSettingsStore";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 
+const USER_STORAGE_KEYS = [
+  "linkedout_token",
+  "linkedout_folder",
+  "linkedout_folders",
+  "linkedout_profile_seeded",
+  "linkedout_llm_key",
+  "linkedout_llm_enabled",
+  "linkedout_llm_provider",
+  "linkedout_llm_usage",
+  "linkedout_llm_skipped",
+  "linkedout_gmail_usage",
+  "google_client_id",
+  "google_client_secret",
+];
+
+function clearUserData() {
+  USER_STORAGE_KEYS.forEach((k) => localStorage.removeItem(k));
+  Object.keys(localStorage).forEach((k) => {
+    if (k.startsWith("linkedout_backup_")) localStorage.removeItem(k);
+  });
+}
+
 const useAuthStore = create((set, get) => ({
   user: null,
   token: localStorage.getItem("linkedout_token"),
@@ -15,11 +37,13 @@ const useAuthStore = create((set, get) => ({
   },
 
   logout() {
-    localStorage.removeItem("linkedout_token");
+    clearUserData();
     set({ user: null, token: null, loading: false });
+    window.location.href = "/login";
   },
 
   async register(name, email, password) {
+    clearUserData();
     const res = await fetch(`${API_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -28,13 +52,10 @@ const useAuthStore = create((set, get) => ({
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Registration failed");
     get().setAuth(data.user, data.token);
-    const settings = useSettingsStore.getState();
-    if (!settings.folderName) {
-      settings.setFolderName("linkedout_data");
-    }
   },
 
   async login(email, password) {
+    clearUserData();
     const res = await fetch(`${API_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -55,12 +76,19 @@ const useAuthStore = create((set, get) => ({
       const res = await fetch(`${API_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error();
+      if (res.status === 401) {
+        get().logout();
+        return;
+      }
+      if (!res.ok) {
+        set({ loading: false });
+        return;
+      }
       const data = await res.json();
       set({ user: data.user, loading: false });
       useSettingsStore.getState().loadFromUser(data.user);
     } catch {
-      get().logout();
+      set({ loading: false });
     }
   },
 }));

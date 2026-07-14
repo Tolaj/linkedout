@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import db from "../services/offlineDb";
 import { api } from "../services/api";
 import { uid } from "../lib/constants";
 
@@ -9,35 +8,24 @@ const useEmailStore = create((set, get) => ({
   loaded: false,
 
   load: async () => {
-    if (!get().loaded) {
-      const [cachedEmails, cachedTemplates] = await Promise.all([
-        db.emails.toArray(),
-        db.emailTemplates.toArray(),
-      ]);
-      set({ emails: cachedEmails, templates: cachedTemplates, loaded: true });
-    }
-
     try {
       const [remoteEmails, remoteTemplates] = await Promise.all([
         api.getAll("emails"),
         api.getAll("templates"),
       ]);
-      if (Array.isArray(remoteEmails)) {
-        await db.emails.bulkPut(remoteEmails);
-      }
-      if (Array.isArray(remoteTemplates)) {
-        await db.emailTemplates.bulkPut(remoteTemplates);
-      }
-      const allEmails = await db.emails.toArray();
-      const allTemplates = await db.emailTemplates.toArray();
-      set({ emails: allEmails, templates: allTemplates });
-    } catch {}
+      set({
+        emails: Array.isArray(remoteEmails) ? remoteEmails : [],
+        templates: Array.isArray(remoteTemplates) ? remoteTemplates : [],
+        loaded: true,
+      });
+    } catch {
+      if (!get().loaded) set({ loaded: true });
+    }
   },
 
   addTemplate: async (data) => {
     const template = { ...data, id: uid(), createdAt: new Date().toISOString() };
     set({ templates: [template, ...get().templates] });
-    await db.emailTemplates.put(template);
     try { await api.create("templates", template); } catch {}
   },
 
@@ -46,20 +34,17 @@ const useEmailStore = create((set, get) => ({
     if (!existing) return;
     const updated = { ...existing, ...data, id };
     set({ templates: get().templates.map((t) => (t.id === id ? updated : t)) });
-    await db.emailTemplates.put(updated);
     try { await api.update("templates", id, updated); } catch {}
   },
 
   deleteTemplate: async (id) => {
     set({ templates: get().templates.filter((t) => t.id !== id) });
-    await db.emailTemplates.delete(id);
     try { await api.remove("templates", id); } catch {}
   },
 
   addEmail: async (data) => {
     const email = { id: uid(), sentAt: new Date().toISOString(), ...data };
     set({ emails: [email, ...get().emails] });
-    await db.emails.put(email);
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         await api.create("emails", email);
@@ -75,13 +60,11 @@ const useEmailStore = create((set, get) => ({
     const email = get().emails.find((e) => e.id === id);
     const updated = { ...email, ...data, id };
     set({ emails: get().emails.map((e) => (e.id === id ? updated : e)) });
-    await db.emails.put(updated);
     try { await api.update("emails", id, updated); } catch {}
   },
 
   deleteEmail: async (id) => {
     set({ emails: get().emails.filter((e) => e.id !== id) });
-    await db.emails.delete(id);
     try { await api.remove("emails", id); } catch {}
   },
 }));

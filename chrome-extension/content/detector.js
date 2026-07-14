@@ -4,6 +4,13 @@ window.LinkedOut = window.LinkedOut || {};
   var lastUrl = window.location.href;
   var pollTimer = null;
 
+  async function isLoggedIn() {
+    try {
+      var data = await chrome.storage.local.get("linkedout_token");
+      return !!data.linkedout_token;
+    } catch { return false; }
+  }
+
   async function runDetection() {
     var url = window.location.href;
     var extractors = LinkedOut.extractors || [];
@@ -23,8 +30,12 @@ window.LinkedOut = window.LinkedOut || {};
           // Notify service worker for badge
           chrome.runtime.sendMessage({ type: "JOB_DETECTED", data: result }).catch(function () {});
 
-          // Show panel directly (no round-trip)
-          waitForPanel(result);
+          var loggedIn = await isLoggedIn();
+          if (loggedIn) {
+            waitForPanel(result);
+          } else {
+            waitForLoginPanel();
+          }
           return;
         }
       } catch (e) {
@@ -48,6 +59,23 @@ window.LinkedOut = window.LinkedOut || {};
         } else if (tries > 20) {
           clearInterval(iv);
           console.warn("[LinkedOut] Panel not available");
+        }
+      }, 100);
+    }
+  }
+
+  function waitForLoginPanel() {
+    if (LinkedOut.showLoginPanel) {
+      LinkedOut.showLoginPanel();
+    } else {
+      var tries = 0;
+      var iv = setInterval(function () {
+        tries++;
+        if (LinkedOut.showLoginPanel) {
+          clearInterval(iv);
+          LinkedOut.showLoginPanel();
+        } else if (tries > 20) {
+          clearInterval(iv);
         }
       }, 100);
     }

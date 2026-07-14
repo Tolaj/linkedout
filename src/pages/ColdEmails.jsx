@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Plus, Send, FileText, Clock, Mail, Trash2, Edit3, Eye, MailCheck, RefreshCw, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import NoWorkspace from "../components/NoWorkspace";
 import useEmailStore from "../stores/useEmailStore";
 import useAppStore from "../stores/useAppStore";
 import useContactStore from "../stores/useContactStore";
@@ -8,6 +9,8 @@ import { isGmailConnected, sendEmail, connectGmail } from "../services/gmail";
 import { syncInboundEmails } from "../services/emailSync";
 import { EMAIL_STATUSES, uid } from "../lib/constants";
 import { format, isPast, parseISO } from "date-fns";
+import { isFileSystemSupported, hasRootDirectory } from "../services/fileSystem";
+import useSettingsStore from "../stores/useSettingsStore";
 
 const TABS = ["tracker", "templates", "compose"];
 
@@ -22,10 +25,13 @@ export default function ColdEmails() {
   const [showTemplateForm, setShowTemplateForm] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
+  const hasWorkspace = isFileSystemSupported() && hasRootDirectory();
+  const navigate = useNavigate();
+  const folderName = useSettingsStore((s) => s.folderName);
 
   const loadApps = useAppStore((s) => s.load);
   const loadContacts = useContactStore((s) => s.load);
-  useEffect(() => { load(); loadApps(); loadContacts(); }, [load, loadApps, loadContacts]);
+  useEffect(() => { if (hasWorkspace) { load(); loadApps(); loadContacts(); } }, [load, loadApps, loadContacts, hasWorkspace, folderName]);
   useEffect(() => {
     if (prelinkedAppId) setSearchParams({}, { replace: true });
   }, []);
@@ -44,6 +50,18 @@ export default function ColdEmails() {
     setSyncMsg(parts.length ? parts.join(", ") : "No new emails");
     setSyncing(false);
     setTimeout(() => setSyncMsg(""), 5000);
+  }
+
+  if (!hasWorkspace) {
+    return (
+      <div className="p-6">
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold font-mono mb-1">emails</h1>
+          <p className="text-sm text-base-300">Templates, tracking, and Gmail-powered sends.</p>
+        </div>
+        <NoWorkspace page="emails" />
+      </div>
+    );
   }
 
   return (

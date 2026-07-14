@@ -1,21 +1,27 @@
 import { useState, useEffect } from "react";
 import { Upload, Eye, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import NoWorkspace from "../components/NoWorkspace";
 import useResumeStore from "../stores/useResumeStore";
 import { RESUME_ARCHETYPES, uid } from "../lib/constants";
 import { isFileSystemSupported, hasRootDirectory, saveFile, listFiles, readFile, deleteFile } from "../services/fileSystem";
+import useSettingsStore from "../stores/useSettingsStore";
 
 export default function Resumes() {
   const { resumes, loaded, load, addResume, deleteResume } = useResumeStore();
   const [folderFiles, setFolderFiles] = useState([]);
   const [showUpload, setShowUpload] = useState(false);
+  const hasWorkspace = isFileSystemSupported() && hasRootDirectory();
+  const navigate = useNavigate();
+  const folderName = useSettingsStore((s) => s.folderName);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (hasWorkspace) load(); }, [load, hasWorkspace, folderName]);
 
   useEffect(() => {
-    if (isFileSystemSupported() && hasRootDirectory()) {
+    if (hasWorkspace) {
       listFiles("01_Resumes").then(setFolderFiles).catch(() => {});
     }
-  }, [resumes]);
+  }, [resumes, hasWorkspace]);
 
   async function handleUpload(file, archetype, version) {
     const destName = `Resume_${archetype}_v${version}.pdf`;
@@ -69,22 +75,28 @@ export default function Resumes() {
           <h1 className="text-xl font-semibold font-mono mb-1">resumes</h1>
           <p className="text-sm text-base-300">Version per role-archetype, not per company.</p>
         </div>
-        <button
-          onClick={() => setShowUpload(true)}
-          className="flex items-center gap-2 bg-accent text-accent-dark font-medium text-sm px-4 py-2.5 rounded-md hover:bg-accent-light transition-colors"
-        >
-          <Upload className="w-4 h-4" />
-          Upload resume
-        </button>
+        {hasWorkspace && (
+          <button
+            onClick={() => setShowUpload(true)}
+            className="flex items-center gap-2 bg-accent text-accent-dark font-medium text-sm px-4 py-2.5 rounded-md hover:bg-accent-light transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            Upload resume
+          </button>
+        )}
       </div>
 
-      {showUpload && <UploadForm onUpload={handleUpload} onCancel={() => setShowUpload(false)} />}
+      {!hasWorkspace && (
+        <NoWorkspace page="resumes" />
+      )}
 
-      {allResumes.length === 0 && untrackedFiles.length === 0 && !showUpload ? (
+      {hasWorkspace && showUpload && <UploadForm onUpload={handleUpload} onCancel={() => setShowUpload(false)} />}
+
+      {hasWorkspace && allResumes.length === 0 && untrackedFiles.length === 0 && !showUpload ? (
         <div className="text-center py-16 text-base-400 text-sm">
           No resumes uploaded yet. Upload your first resume PDF.
         </div>
-      ) : (
+      ) : hasWorkspace ? (
         <div className="overflow-x-auto border border-base-600 rounded-lg">
           <table className="w-full text-sm text-left">
             <thead className="bg-base-700 text-xs text-base-300 uppercase tracking-wider">
@@ -142,7 +154,7 @@ export default function Resumes() {
             </tbody>
           </table>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

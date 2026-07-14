@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { ChevronDown, ChevronRight, Plus, Trash2, Upload, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import NoWorkspace from "../components/NoWorkspace";
 import useProfileFieldStore from "../stores/useProfileFieldStore";
 import { PROFILE_CATEGORIES, uid } from "../lib/constants";
+import { isFileSystemSupported, hasRootDirectory } from "../services/fileSystem";
+import useSettingsStore from "../stores/useSettingsStore";
 
 const CATEGORY_LABELS = {
   personal: "Personal Info",
@@ -16,9 +20,12 @@ export default function QuickApply() {
   const { fields, loaded, load, seedDefaults, updateField, addField, deleteField } = useProfileFieldStore();
   const [collapsed, setCollapsed] = useState({});
   const [adding, setAdding] = useState(null);
+  const hasWorkspace = isFileSystemSupported() && hasRootDirectory();
+  const navigate = useNavigate();
+  const folderName = useSettingsStore((s) => s.folderName);
 
-  useEffect(() => { load(); }, [load]);
-  useEffect(() => { if (loaded) seedDefaults(); }, [loaded, seedDefaults]);
+  useEffect(() => { if (hasWorkspace) load(); }, [load, hasWorkspace, folderName]);
+  useEffect(() => { if (hasWorkspace && loaded) seedDefaults(); }, [loaded, seedDefaults, hasWorkspace]);
 
   const byCategory = {};
   for (const cat of PROFILE_CATEGORIES) byCategory[cat] = [];
@@ -55,6 +62,18 @@ export default function QuickApply() {
       sortOrder,
     });
     setAdding(null);
+  }
+
+  if (!hasWorkspace) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold font-mono mb-1">quick apply</h1>
+          <p className="text-sm text-base-300">Pre-store your answers. The extension auto-fills application forms.</p>
+        </div>
+        <NoWorkspace page="quickapply" />
+      </div>
+    );
   }
 
   return (

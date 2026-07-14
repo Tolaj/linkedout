@@ -55,10 +55,13 @@ LinkedOut.API = {
 
   async createApplication(appData) {
     const id = LinkedOut.uid();
+    var settings = await this.getSettings();
+    var workspace = settings && settings.folderName ? settings.folderName : "";
     const app = {
       ...LinkedOut.EMPTY_APP,
       ...appData,
       id,
+      workspace,
       createdAt: new Date().toISOString(),
     };
     const result = await this._request("/applications", {
@@ -70,7 +73,21 @@ LinkedOut.API = {
   },
 
   async getProfileFields() {
-    return this._request("/profilefields");
+    const allFields = await this._request("/profilefields");
+    if (allFields._unauthorized || !Array.isArray(allFields)) return allFields;
+    const settings = await this.getSettings();
+    const workspace = settings && settings.folderName ? settings.folderName : "";
+    if (!workspace) return allFields;
+    return allFields.filter(function (f) {
+      return !f.workspace || f.workspace === workspace;
+    });
+  },
+
+  async getSettings() {
+    return this._request("/auth/me").then(function (res) {
+      if (res._unauthorized) return null;
+      return (res.user && res.user.settings) || res.settings || {};
+    }).catch(function () { return {}; });
   },
 
   async logout() {

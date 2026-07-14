@@ -1,15 +1,18 @@
 import { useState, useEffect, useRef } from "react";
 import { Upload, FileText, Trash2, Edit3, ExternalLink, ChevronDown, ChevronRight, Plus, Send, ArrowUpRight, ArrowDownLeft, Users, RefreshCw } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import NoWorkspace from "../components/NoWorkspace";
 import useAppStore from "../stores/useAppStore";
 import useEmailStore from "../stores/useEmailStore";
 import useContactStore from "../stores/useContactStore";
-import db from "../services/offlineDb";
+import useNoteStore from "../stores/useNoteStore";
 import { uid, STAGE_COLOR, EMAIL_STATUSES } from "../lib/constants";
 import { isFileSystemSupported, hasRootDirectory, saveFile, createCompanyFolder, listFiles } from "../services/fileSystem";
 import { isGmailConnected, sendEmail, connectGmail } from "../services/gmail";
 import { syncInboundEmails } from "../services/emailSync";
 import FormModal from "../components/FormModal";
 import { format, parseISO } from "date-fns";
+import useSettingsStore from "../stores/useSettingsStore";
 
 function emailMatchesTargets(email, domain) {
   if (!domain || !email.recipientEmail) return false;
@@ -24,15 +27,19 @@ export default function Applications() {
   const { apps, loaded, load, deleteApp } = useAppStore();
   const { emails, load: loadEmails, updateEmail, deleteEmail } = useEmailStore();
   const loadContacts = useContactStore((s) => s.load);
+  const loadNotes = useNoteStore((s) => s.load);
   const [editingApp, setEditingApp] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
+  const hasWorkspace = isFileSystemSupported() && hasRootDirectory();
+  const navigate = useNavigate();
+  const folderName = useSettingsStore((s) => s.folderName);
 
   useEffect(() => {
-    load(); loadEmails(); loadContacts();
-  }, [load, loadEmails, loadContacts]);
+    if (hasWorkspace) { load(); loadEmails(); loadContacts(); loadNotes(); }
+  }, [load, loadEmails, loadContacts, loadNotes, hasWorkspace, folderName]);
 
   useEffect(() => {
     if (loaded && isGmailConnected()) {
@@ -66,6 +73,18 @@ export default function Applications() {
     setSyncMsg(parts.length ? parts.join(", ") : "No new emails");
     setSyncing(false);
     setTimeout(() => setSyncMsg(""), 5000);
+  }
+
+  if (!hasWorkspace) {
+    return (
+      <div className="p-6">
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold font-mono mb-1">applications</h1>
+          <p className="text-sm text-base-300">Per-company docs, JD snapshots, cover letters & notes.</p>
+        </div>
+        <NoWorkspace page="applications" />
+      </div>
+    );
   }
 
   return (
@@ -161,6 +180,9 @@ export default function Applications() {
 }
 
 function AppRow({ app, color, domainEmails, isExpanded, onToggle, onEdit, onDelete, updateEmail, deleteEmail, addEmail }) {
+  const appNote = useNoteStore((s) => s.getAppNote(app.id));
+  const addNote = useNoteStore((s) => s.addNote);
+  const updateNoteStore = useNoteStore((s) => s.updateNote);
   const [noteText, setNoteText] = useState("");
   const [files, setFiles] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -170,10 +192,8 @@ function AppRow({ app, color, domainEmails, isExpanded, onToggle, onEdit, onDele
 
   useEffect(() => {
     if (isExpanded && !noteLoaded) {
-      db.notes.where("section").equals("application").and((n) => n.appId === app.id).first().then((n) => {
-        if (n) setNoteText(n.content || "");
-        setNoteLoaded(true);
-      });
+      if (appNote) setNoteText(appNote.content || "");
+      setNoteLoaded(true);
       if (isFileSystemSupported() && hasRootDirectory()) {
         const folderName = `${sanitize(app.company)}_${sanitize(app.role)}`;
         listFiles(`02_Applications/${folderName}`).then(setFiles).catch(() => {});
@@ -199,16 +219,16 @@ function AppRow({ app, color, domainEmails, isExpanded, onToggle, onEdit, onDele
 
   async function handleSaveNote() {
     setSaving(true);
-    const existing = await db.notes.where("section").equals("application").and((n) => n.appId === app.id).first();
-    const doc = {
-      id: existing?.id || uid(),
-      appId: app.id,
-      section: "application",
-      title: `${app.company} - ${app.role}`,
-      content: noteText,
-      updatedAt: new Date().toISOString(),
-    };
-    await db.notes.put(doc);
+    if (appNote) {
+      await updateNoteStore(appNote.id, { content: noteText });
+    } else {
+      await addNote({
+        appId: app.id,
+        section: "application",
+        title: `${app.company} - ${app.role}`,
+        content: noteText,
+      });
+    }
     setSaving(false);
   }
 
@@ -373,7 +393,7 @@ function AppRow({ app, color, domainEmails, isExpanded, onToggle, onEdit, onDele
                     <p className="text-xs text-base-400">
                       {isFileSystemSupported() && hasRootDirectory()
                         ? "No files yet. Upload JD, resume, or cover letter."
-                        : "Select a root folder in Settings to manage files."}
+                        : "No workspace connected — files are only available on the device where they were uploaded."}
                     </p>
                   ) : (
                     <div className="space-y-1">

@@ -52,6 +52,19 @@ LinkedOut.extractors.push({
       score += 2; reasons.push("apply-btn");
     }
 
+    // 8. Negative signals — common non-job pages with similar form fields
+    var negWords = /sign.?up|sign.?in|log.?in|register|create.?account|forgot.?password|reset.?password|subscribe|newsletter|contact.?us|get.?started|free.?trial|pricing|checkout|payment|billing|cart|purchase|buy.?now|donate/i;
+    var negUrl = /\b(signup|signin|login|register|trial|pricing|checkout|cart|account|auth|subscribe)\b/;
+    if (negWords.test(pageTitle)) { score -= 3; reasons.push("neg-title"); }
+    if (negUrl.test(url)) { score -= 3; reasons.push("neg-url"); }
+    var pageButtons = doc.querySelectorAll("button, input[type='submit']");
+    for (var bi = 0; bi < pageButtons.length; bi++) {
+      var btnText = (pageButtons[bi].textContent || pageButtons[bi].value || "").trim();
+      if (/^(sign.?up|register|create.?account|subscribe|get.?started|start.?free|try.?free)/i.test(btnText)) {
+        score -= 3; reasons.push("neg-btn"); break;
+      }
+    }
+
     // Need enough evidence
     if (score < 4) return null;
 
@@ -176,23 +189,19 @@ function detectApplicationForm(doc) {
     allText += " " + n;
   });
 
-  // Check for application-specific fields
-  if (/resume|cv|curriculum/i.test(allText)) signals++;
-  if (/cover.?letter/i.test(allText)) signals++;
-  if (/first.?name|full.?name|your.?name/i.test(allText)) signals++;
-  if (/phone|cell|mobile|telephone/i.test(allText)) signals++;
-  if (/email/i.test(allText)) signals++;
-  if (/linkedin|portfolio|website|github/i.test(allText)) signals++;
-  if (/work.?(authorization|status|eligib)|visa|sponsor/i.test(allText)) signals++;
-  if (/salary|compensation|pay/i.test(allText)) signals++;
-  if (/start.?date|avail|notice.?period/i.test(allText)) signals++;
-  if (/equal.?opportunity|eeo|demographic|veteran|disability|gender|race|ethnicity/i.test(allText)) signals++;
+  // Job-specific fields (strong signals)
+  if (/resume|cv|curriculum/i.test(allText)) signals += 2;
+  if (/cover.?letter/i.test(allText)) signals += 2;
+  if (/work.?(authorization|status|eligib)|visa|sponsor/i.test(allText)) signals += 2;
+  if (/salary|compensation|pay.?expect/i.test(allText)) signals++;
+  if (/start.?date|notice.?period/i.test(allText)) signals++;
+  if (/equal.?opportunity|eeo|demographic|veteran|disability/i.test(allText)) signals++;
   if (/referred|referral|how.?did.?you.?hear/i.test(allText)) signals++;
-  if (/years?.?of.?experience|experience.?level|education|degree/i.test(allText)) signals++;
+  if (/years?.?of.?experience|experience.?level/i.test(allText)) signals++;
+  if (/linkedin|portfolio|github/i.test(allText)) signals++;
 
-  // File upload inputs (resume/CV upload)
-  var fileInputs = doc.querySelectorAll('input[type="file"]');
-  if (fileInputs.length > 0) signals++;
+  // Generic fields (appear on signup forms too — don't count)
+  // first name, last name, email, phone, company are NOT scored
 
   return signals;
 }

@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import db from "../services/offlineDb";
 import { api } from "../services/api";
 import { uid } from "../lib/constants";
 import { isFileSystemSupported, hasRootDirectory, saveFile, readFile, listFiles, deleteDirectory } from "../services/fileSystem";
@@ -52,27 +51,16 @@ ${app.notes || ""}
 const useAppStore = create((set, get) => ({
   apps: [],
   loaded: false,
-  online: false,
 
   load: async () => {
     const workspace = getWorkspace();
-
-    if (!get().loaded) {
-      const cached = await db.applications.toArray();
-      const filtered = workspace ? cached.filter((a) => !a.workspace || a.workspace === workspace) : cached;
-      set({ apps: filtered, loaded: true });
-    }
-
     try {
       const remote = await api.getAll("applications");
-      if (Array.isArray(remote)) {
-        await db.applications.bulkPut(remote);
-      }
-      const all = await db.applications.toArray();
+      const all = Array.isArray(remote) ? remote : [];
       const filtered = workspace ? all.filter((a) => !a.workspace || a.workspace === workspace) : all;
-      set({ apps: filtered, online: true });
+      set({ apps: filtered, loaded: true });
     } catch {
-      set({ online: false });
+      if (!get().loaded) set({ loaded: true });
     }
   },
 
@@ -82,7 +70,6 @@ const useAppStore = create((set, get) => ({
     const appNumber = currentApps.length + 1;
     const app = { ...data, id: uid(), workspace, createdAt: new Date().toISOString() };
     set({ apps: [app, ...currentApps] });
-    await db.applications.put(app);
     try { await api.create("applications", app); } catch {}
     createAppFolder(app, appNumber).catch(() => {});
     return app;
@@ -93,14 +80,12 @@ const useAppStore = create((set, get) => ({
     if (!existing) return;
     const updated = { ...existing, ...data, id, updatedAt: new Date().toISOString() };
     set({ apps: get().apps.map((a) => (a.id === id ? updated : a)) });
-    await db.applications.put(updated);
     try { await api.update("applications", id, updated); } catch {}
   },
 
   deleteApp: async (id) => {
     const app = get().apps.find((a) => a.id === id);
     set({ apps: get().apps.filter((a) => a.id !== id) });
-    await db.applications.delete(id);
     try { await api.remove("applications", id); } catch {}
     const emailStore = useEmailStore.getState();
     const linked = emailStore.emails.filter((e) => e.appId === id);
@@ -122,7 +107,6 @@ const useAppStore = create((set, get) => ({
     if (!app) return;
     const updated = { ...app, status: newStatus, updatedAt: new Date().toISOString() };
     set({ apps: get().apps.map((a) => (a.id === id ? updated : a)) });
-    await db.applications.put(updated);
     try { await api.update("applications", id, updated); } catch {}
   },
 }));

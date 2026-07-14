@@ -105,6 +105,20 @@ export async function removeFolderHandle(name) {
   await removeHandle(name);
 }
 
+export async function connectDefaultWorkspace() {
+  if (!isFileSystemSupported()) {
+    throw new Error("File System Access API not supported in this browser");
+  }
+  const documentsHandle = await window.showDirectoryPicker({
+    mode: "readwrite",
+    startIn: "documents",
+  });
+  const folderHandle = await documentsHandle.getDirectoryHandle("linkedout_data", { create: true });
+  rootHandle = folderHandle;
+  await persistHandle("linkedout_data", folderHandle);
+  return "linkedout_data";
+}
+
 export async function selectRootDirectory() {
   if (!isFileSystemSupported()) {
     throw new Error("File System Access API not supported in this browser");

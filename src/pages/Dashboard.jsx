@@ -1,18 +1,25 @@
 import { useState, useEffect, useMemo } from "react";
 import { Plus, Search, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import useAppStore from "../stores/useAppStore";
+import NoWorkspace from "../components/NoWorkspace";
 import { KANBAN_COLUMNS, CLOSED_STATUSES, STAGE_COLOR } from "../lib/constants";
 import AppCard from "../components/AppCard";
 import FormModal from "../components/FormModal";
 import { EMPTY_APP } from "../lib/constants";
+import { isFileSystemSupported, hasRootDirectory } from "../services/fileSystem";
+import useSettingsStore from "../stores/useSettingsStore";
 
 export default function Dashboard() {
   const { apps, loaded, load } = useAppStore();
   const [query, setQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingApp, setEditingApp] = useState(null);
+  const hasWorkspace = isFileSystemSupported() && hasRootDirectory();
+  const navigate = useNavigate();
+  const folderName = useSettingsStore((s) => s.folderName);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (hasWorkspace) load(); }, [load, hasWorkspace, folderName]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -52,6 +59,18 @@ export default function Dashboard() {
       offers,
     };
   }, [apps]);
+
+  if (!hasWorkspace) {
+    return (
+      <div className="p-6">
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold font-mono mb-1">job_pipeline</h1>
+          <p className="text-sm text-base-300">Track every application like a build — from queued to shipped.</p>
+        </div>
+        <NoWorkspace page="dashboard" />
+      </div>
+    );
+  }
 
   if (!loaded) {
     return (

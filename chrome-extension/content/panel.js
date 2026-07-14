@@ -440,9 +440,77 @@ window.LinkedOut = window.LinkedOut || {};
     footer.parentNode.insertBefore(el, footer.nextSibling);
   }
 
+  function createLoginPanel() {
+    if (panelHost) panelHost.remove();
+
+    panelHost = document.createElement("div");
+    panelHost.id = "linkedout-panel-host";
+    shadowRoot = panelHost.attachShadow({ mode: "closed" });
+
+    var style = document.createElement("style");
+    style.textContent = PANEL_CSS + `
+      .lo-login-body { padding: 20px 16px; text-align: center; }
+      .lo-login-icon { font-size: 32px; margin-bottom: 12px; }
+      .lo-login-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+      .lo-login-desc { font-size: 12px; color: #A3A3A3; margin-bottom: 16px; line-height: 1.5; }
+      .lo-login-btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: #0891B2; color: #171717; border: none;
+        padding: 10px 20px; border-radius: 6px; font-size: 13px;
+        font-weight: 600; cursor: pointer; font-family: inherit;
+      }
+      .lo-login-btn:hover { background: #06B6D4; }
+    `;
+    shadowRoot.appendChild(style);
+
+    var panel = document.createElement("div");
+    panel.className = "lo-panel";
+    panel.innerHTML = `
+      <div class="lo-header" id="lo-drag-handle">
+        <div class="lo-header-left">
+          <svg class="lo-logo" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+            <rect width="512" height="512" rx="96" fill="#171717"/>
+            <g transform="translate(106,106) scale(12.5)" fill="none" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/>
+            </g>
+          </svg>
+          <span class="lo-title">linkedout</span>
+        </div>
+        <div class="lo-header-actions">
+          <button class="lo-btn-icon" id="lo-close" title="Close">&times;</button>
+        </div>
+      </div>
+      <div class="lo-login-body">
+        <div class="lo-login-icon">&#128274;</div>
+        <div class="lo-login-title">Sign in to track this job</div>
+        <div class="lo-login-desc">
+          Job detected on this page. Log in via the extension popup to start tracking applications.
+        </div>
+        <button class="lo-login-btn" id="lo-open-popup">&#9889; Open Extension</button>
+      </div>
+    `;
+    shadowRoot.appendChild(panel);
+    document.body.appendChild(panelHost);
+
+    shadowRoot.getElementById("lo-close").addEventListener("click", function () {
+      panelHost.remove();
+      panelHost = null;
+      dismissed[window.location.href] = true;
+    });
+
+    shadowRoot.getElementById("lo-open-popup").addEventListener("click", function () {
+      chrome.runtime.sendMessage({ type: "OPEN_POPUP" }).catch(function () {});
+    });
+  }
+
   // Public API for detector.js
   LinkedOut.showPanel = function (data) {
     if (dismissed[window.location.href]) return;
     createPanel(data);
+  };
+
+  LinkedOut.showLoginPanel = function () {
+    if (dismissed[window.location.href]) return;
+    createLoginPanel();
   };
 })();
