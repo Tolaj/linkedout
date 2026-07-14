@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>LinkedOut</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="app">
+    <div class="header" id="header-tap">
+      <svg class="logo" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+        <rect width="512" height="512" rx="96" fill="#171717"/>
+        <g transform="translate(106,106) scale(12.5)" fill="none" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/>
+        </g>
+      </svg>
+      <span class="title">linkedout</span>
+    </div>
+
+    <!-- Dev settings — hidden by default, tap title 5x to reveal -->
+    <div id="dev-section" style="display:none;">
+      <div class="section">
+        <label class="label">API URL (backend)</label>
+        <input type="text" id="api-url" class="input mono" placeholder="http://localhost:4000/api" />
+      </div>
+      <div class="section">
+        <label class="label">Dashboard URL (frontend)</label>
+        <input type="text" id="dashboard-url" class="input mono" placeholder="http://localhost:5173" />
+      </div>
+      <div class="url-actions">
+        <button id="save-url" class="btn-sm">Save</button>
+        <span id="url-msg" class="success" style="display:none;">Saved</span>
+      </div>
+    </div>
+
+    <!-- Login view -->
+    <div id="login-view" style="display:none;">
+      <div class="section">
+        <label class="label">Email</label>
+        <input type="email" id="email" class="input" placeholder="you@example.com" />
+      </div>
+      <div class="section">
+        <label class="label">Password</label>
+        <input type="password" id="password" class="input" placeholder="••••••••" />
+      </div>
+      <div id="login-error" class="error" style="display:none;"></div>
+      <button id="login-btn" class="btn-primary">Log In</button>
+    </div>
+
+    <!-- Logged in view -->
+    <div id="user-view" style="display:none;">
+      <div class="user-info">
+        <div class="user-name" id="user-name"></div>
+        <div class="user-email" id="user-email"></div>
+      </div>
+      <button id="open-dashboard" class="btn-secondary">Open Dashboard</button>
+      <button id="logout-btn" class="btn-danger">Log Out</button>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading-view">
+      <div class="loading-text">Checking session...</div>
+    </div>
+  </div>
+
+  <script src="../lib/constants.js"></script>
+  <script src="../lib/api.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

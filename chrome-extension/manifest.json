@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "LinkedOut - Job Application Tracker",
+  "version": "1.0.0",
+  "description": "Auto-detect job postings and track applications in LinkedOut",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "lib/constants.js",
+        "lib/api.js",
+        "content/extractors/linkedin.js",
+        "content/extractors/indeed.js",
+        "content/extractors/greenhouse.js",
+        "content/extractors/lever.js",
+        "content/extractors/workday.js",
+        "content/extractors/glassdoor.js",
+        "content/extractors/jobvite.js",
+        "content/extractors/fallback.js",
+        "content/detector.js",
+        "content/panel.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}
