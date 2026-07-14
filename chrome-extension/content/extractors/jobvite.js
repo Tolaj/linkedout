@@ -32,12 +32,41 @@ LinkedOut.extractors.push({
       if (ogSite) companyText = ogSite.getAttribute("content") || "";
     }
 
-    var location =
-      (doc.querySelector(".jv-job-detail-meta .location") ||
-       doc.querySelector("[class*='location']"));
+    var locationText = "";
+    var locEl = doc.querySelector(".jv-job-detail-meta .location");
+    if (!locEl) {
+      // Look for location in the subtitle area near the role heading, not nav
+      var metas = doc.querySelectorAll("h2 ~ p, h2 ~ div, .jv-job-detail-meta, [class*='job-detail'] [class*='location']");
+      for (var k = 0; k < metas.length; k++) {
+        var txt = metas[k].textContent.trim();
+        if (/,\s*[A-Z]{2}/.test(txt) || /,\s*[A-Z][a-z]+\s+[A-Z][a-z]/.test(txt)) {
+          var parts = txt.split(/\s*[·•|]\s*/);
+          for (var p = 0; p < parts.length; p++) {
+            if (/,\s*[A-Z]/.test(parts[p])) { locationText = parts[p].trim(); break; }
+          }
+          if (locationText) break;
+        }
+      }
+    } else {
+      locationText = locEl.textContent.trim();
+    }
 
     var roleText = role ? role.textContent.trim() : "";
-    var locationText = location ? location.textContent.trim() : "";
+
+    // Extract domain from "Return to X.com" links or company website links
+    var domain = "";
+    var links = doc.querySelectorAll("a[href]");
+    for (var m = 0; m < links.length; m++) {
+      var href = links[m].getAttribute("href") || "";
+      var linkText = links[m].textContent.toLowerCase();
+      if (/return to|visit|go to/i.test(linkText) && /\.\w{2,}/.test(href)) {
+        try {
+          var u = new URL(href, window.location.origin);
+          domain = u.hostname.replace(/^www\./, "");
+          break;
+        } catch (e) {}
+      }
+    }
 
     if (!companyText && !roleText) return null;
 
@@ -45,6 +74,7 @@ LinkedOut.extractors.push({
       company: companyText,
       role: roleText,
       location: locationText,
+      domain: domain,
       source: "Company Site",
       link: window.location.href.replace(/\/apply.*$/, ""),
       dateApplied: new Date().toISOString().slice(0, 10),

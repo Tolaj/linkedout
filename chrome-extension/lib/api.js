@@ -69,6 +69,10 @@ LinkedOut.API = {
     return result;
   },
 
+  async getProfileFields() {
+    return this._request("/profilefields");
+  },
+
   async logout() {
     await chrome.storage.local.remove(["linkedout_token", "linkedout_user"]);
   },

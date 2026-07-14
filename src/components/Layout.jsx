@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 import {
   LayoutDashboard, Mail, FileText, FolderOpen,
-  BookOpen, Settings, Menu, LogOut,
+  Zap, BookOpen, Settings, Menu, LogOut,
 } from "lucide-react";
 import Logo from "./Logo";
 import { useState } from "react";
@@ -12,6 +12,7 @@ const NAV = [
   { to: "/emails", icon: Mail, label: "Emails" },
   { to: "/resumes", icon: FileText, label: "Resumes" },
   { to: "/applications", icon: FolderOpen, label: "Applications" },
+  { to: "/quick-apply", icon: Zap, label: "Quick Apply" },
   { to: "/prep", icon: BookOpen, label: "Interview Prep" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];

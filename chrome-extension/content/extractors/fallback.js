@@ -96,7 +96,27 @@ LinkedOut.extractors.push({
 
     // Try to extract location from common patterns
     var locEl = doc.querySelector("[class*='location' i], [data-testid*='location'], [id*='location']");
-    if (locEl) location = locEl.textContent.trim().slice(0, 80);
+    if (locEl) {
+      var locText = locEl.textContent.trim();
+      if (locText.length <= 80 && !/^(location|locations)$/i.test(locText)) {
+        location = locText;
+      }
+    }
+
+    // Extract domain from company website links
+    var domain = "";
+    var allLinks = doc.querySelectorAll("a[href]");
+    for (var li = 0; li < allLinks.length; li++) {
+      var linkHref = allLinks[li].getAttribute("href") || "";
+      var lt = allLinks[li].textContent.toLowerCase();
+      if (/return to|visit|go to|company site/i.test(lt) && /https?:\/\//.test(linkHref)) {
+        try {
+          var parsed = new URL(linkHref);
+          domain = parsed.hostname.replace(/^www\./, "");
+          break;
+        } catch (e) {}
+      }
+    }
 
     if (!role && !company) return null;
 
@@ -104,6 +124,7 @@ LinkedOut.extractors.push({
       company: company,
       role: role,
       location: location,
+      domain: domain,
       source: window.location.hostname.replace(/^(www|jobs|careers)\./,""),
       link: window.location.href.replace(/\/apply.*$/, ""),
       dateApplied: new Date().toISOString().slice(0, 10),

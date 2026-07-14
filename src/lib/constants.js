@@ -45,3 +45,42 @@ export const EMPTY_APP = {
 export function uid() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
+
+export const PROFILE_CATEGORIES = ["personal", "work", "education", "links", "eeo", "custom"];
+
+export const DEFAULT_PROFILE_FIELDS = [
+  { category: "personal", fieldKey: "first_name", label: "First Name", type: "text", sortOrder: 0 },
+  { category: "personal", fieldKey: "last_name", label: "Last Name", type: "text", sortOrder: 1 },
+  { category: "personal", fieldKey: "email", label: "Email", type: "text", sortOrder: 2 },
+  { category: "personal", fieldKey: "phone", label: "Phone", type: "text", sortOrder: 3 },
+  { category: "personal", fieldKey: "address", label: "Address", type: "text", sortOrder: 4 },
+  { category: "personal", fieldKey: "city", label: "City", type: "text", sortOrder: 5 },
+  { category: "personal", fieldKey: "state", label: "State", type: "text", sortOrder: 6 },
+  { category: "personal", fieldKey: "zip", label: "Zip Code", type: "text", sortOrder: 7 },
+  { category: "personal", fieldKey: "country", label: "Country", type: "text", sortOrder: 8 },
+  { category: "personal", fieldKey: "resume", label: "Resume", type: "file", sortOrder: 9 },
+
+  { category: "work", fieldKey: "work_authorization", label: "Work Authorization", type: "select", options: ["Yes", "No"], sortOrder: 0 },
+  { category: "work", fieldKey: "visa_sponsorship", label: "Visa Sponsorship Needed", type: "select", options: ["Yes", "No"], sortOrder: 1 },
+  { category: "work", fieldKey: "salary_expectation", label: "Salary Expectation", type: "text", sortOrder: 2 },
+  { category: "work", fieldKey: "years_experience", label: "Years of Experience", type: "text", sortOrder: 3 },
+  { category: "work", fieldKey: "start_date", label: "Start Date Availability", type: "text", sortOrder: 4 },
+  { category: "work", fieldKey: "current_company", label: "Current Company", type: "text", sortOrder: 5 },
+  { category: "work", fieldKey: "current_title", label: "Current Title", type: "text", sortOrder: 6 },
+
+  { category: "education", fieldKey: "highest_degree", label: "Highest Degree", type: "select", options: ["High School", "Associate", "Bachelor's", "Master's", "PhD"], sortOrder: 0 },
+  { category: "education", fieldKey: "school", label: "School", type: "text", sortOrder: 1 },
+  { category: "education", fieldKey: "major", label: "Major", type: "text", sortOrder: 2 },
+  { category: "education", fieldKey: "graduation_year", label: "Graduation Year", type: "text", sortOrder: 3 },
+  { category: "education", fieldKey: "gpa", label: "GPA", type: "text", sortOrder: 4 },
+
+  { category: "links", fieldKey: "linkedin_url", label: "LinkedIn URL", type: "text", sortOrder: 0 },
+  { category: "links", fieldKey: "github_url", label: "GitHub URL", type: "text", sortOrder: 1 },
+  { category: "links", fieldKey: "portfolio_url", label: "Portfolio URL", type: "text", sortOrder: 2 },
+  { category: "links", fieldKey: "personal_website", label: "Personal Website", type: "text", sortOrder: 3 },
+
+  { category: "eeo", fieldKey: "gender", label: "Gender", type: "select", options: ["Male", "Female", "Non-binary", "Prefer not to say"], sortOrder: 0 },
+  { category: "eeo", fieldKey: "race_ethnicity", label: "Race / Ethnicity", type: "select", options: ["American Indian or Alaska Native", "Asian", "Black or African American", "Hispanic or Latino", "Native Hawaiian or Other Pacific Islander", "White", "Two or More Races", "Prefer not to say"], sortOrder: 1 },
+  { category: "eeo", fieldKey: "veteran_status", label: "Veteran Status", type: "select", options: ["Not a veteran", "Veteran", "Prefer not to say"], sortOrder: 2 },
+  { category: "eeo", fieldKey: "disability_status", label: "Disability Status", type: "select", options: ["No", "Yes", "Prefer not to say"], sortOrder: 3 },
+];

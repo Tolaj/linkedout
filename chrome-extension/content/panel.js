@@ -132,6 +132,20 @@ window.LinkedOut = window.LinkedOut || {};
     }
     .lo-btn-primary:hover { background: #06B6D4; }
     .lo-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .lo-btn-secondary {
+      background: transparent;
+      color: #0891B2;
+      border: 1px solid #0891B2;
+      padding: 9px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+    .lo-btn-secondary:hover { background: rgba(8,145,178,0.1); }
+    .lo-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
     .lo-status {
       font-size: 12px;
       padding: 8px 16px;
@@ -240,6 +254,10 @@ window.LinkedOut = window.LinkedOut || {};
   }
 
   function createPanel(data) {
+    // Clean up bogus location values (nav link text etc.)
+    if (data.location && /^(location|locations|remote|n\/a)$/i.test(data.location.trim())) {
+      data.location = "";
+    }
     if (panelHost) panelHost.remove();
 
     panelHost = document.createElement("div");
@@ -272,6 +290,7 @@ window.LinkedOut = window.LinkedOut || {};
         ${buildForm(data)}
       </div>
       <div class="lo-footer" id="lo-footer">
+        <button class="lo-btn-secondary" id="lo-fill-form">&#9889; Fill Form</button>
         <button class="lo-btn-primary" id="lo-submit">Track Application</button>
       </div>
     `;
@@ -377,6 +396,36 @@ window.LinkedOut = window.LinkedOut || {};
         btn.disabled = false;
         btn.textContent = "Track Application";
       }
+    });
+
+    // Fill Form button
+    shadowRoot.getElementById("lo-fill-form").addEventListener("click", async function () {
+      var btn = this;
+      btn.disabled = true;
+      btn.textContent = "Fetching...";
+
+      try {
+        var fields = await LinkedOut.API.getProfileFields();
+        if (fields._unauthorized) {
+          showStatus("Not logged in. Click the extension icon to log in.", "warn");
+          btn.disabled = false;
+          btn.textContent = "⚡ Fill Form";
+          return;
+        }
+        if (!fields || fields.length === 0) {
+          showStatus("No answers saved yet. Fill them in on the Quick Apply page.", "warn");
+          btn.disabled = false;
+          btn.textContent = "⚡ Fill Form";
+          return;
+        }
+        btn.textContent = "Filling...";
+        var result = LinkedOut.autofill.run(fields);
+        showStatus("Filled " + result.filled + " of " + result.total + " fields", result.filled > 0 ? "success" : "warn");
+      } catch (e) {
+        showStatus(e.message || "Failed to autofill", "error");
+      }
+      btn.disabled = false;
+      btn.textContent = "⚡ Fill Form";
     });
   }
 

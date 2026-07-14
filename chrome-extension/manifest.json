@@ -24,6 +24,8 @@
         "content/extractors/glassdoor.js",
         "content/extractors/jobvite.js",
         "content/extractors/fallback.js",
+        "content/fieldAliases.js",
+        "content/autofill.js",
         "content/detector.js",
         "content/panel.js"
       ],

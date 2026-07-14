@@ -7,6 +7,7 @@ import Resumes from "./pages/Resumes";
 import Applications from "./pages/Applications";
 import InterviewPrep from "./pages/InterviewPrep";
 import Settings from "./pages/Settings";
+import QuickApply from "./pages/QuickApply";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import useAuthStore from "./stores/useAuthStore";
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="emails" element={<ColdEmails />} />
           <Route path="resumes" element={<Resumes />} />
           <Route path="applications" element={<Applications />} />
+          <Route path="quick-apply" element={<QuickApply />} />
           <Route path="prep" element={<InterviewPrep />} />
           <Route path="settings" element={<Settings />} />
         </Route>
