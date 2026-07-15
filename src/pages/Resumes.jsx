@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Upload, Eye, Trash2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import NoWorkspace from "../components/NoWorkspace";
 import useResumeStore from "../stores/useResumeStore";
 import { RESUME_ARCHETYPES, uid } from "../lib/constants";
@@ -12,7 +11,6 @@ export default function Resumes() {
   const [folderFiles, setFolderFiles] = useState([]);
   const [showUpload, setShowUpload] = useState(false);
   const hasWorkspace = isFileSystemSupported() && hasRootDirectory();
-  const navigate = useNavigate();
   const folderName = useSettingsStore((s) => s.folderName);
 
   useEffect(() => { if (hasWorkspace) load(); }, [load, hasWorkspace, folderName]);
@@ -53,6 +51,7 @@ export default function Resumes() {
       const file = await readFile(`01_Resumes/${name}`);
       const url = URL.createObjectURL(file);
       window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch {}
   }
 

@@ -48,6 +48,7 @@ export default function App() {
           <Route path="quick-apply" element={<QuickApply />} />
           <Route path="prep" element={<InterviewPrep />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>

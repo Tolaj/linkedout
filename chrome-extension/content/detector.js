@@ -81,7 +81,7 @@ window.LinkedOut = window.LinkedOut || {};
     }
   }
 
-  // Listen for manual re-detect from service worker
+  // Listen for messages from popup / service worker
   chrome.runtime.onMessage.addListener(function (msg) {
     if (msg.type === "SHOW_PANEL" && msg.data) {
       waitForPanel(msg.data);
@@ -89,7 +89,34 @@ window.LinkedOut = window.LinkedOut || {};
     if (msg.type === "RE_DETECT") {
       runDetection();
     }
+    if (msg.type === "FORCE_PANEL") {
+      forceShowPanel();
+    }
   });
+
+  async function forceShowPanel() {
+    var loggedIn = await isLoggedIn();
+    if (!loggedIn) {
+      waitForLoginPanel();
+      return;
+    }
+
+    var url = window.location.href;
+    var extractors = LinkedOut.extractors || [];
+    for (var i = 0; i < extractors.length; i++) {
+      var ext = extractors[i];
+      if (!ext.match(url)) continue;
+      try {
+        var result = ext.extract(document);
+        if (result && typeof result.then === "function") result = await result;
+        if (result && (result.company || result.role)) {
+          if (LinkedOut.forcePanel) LinkedOut.forcePanel(result);
+          return;
+        }
+      } catch {}
+    }
+    if (LinkedOut.forcePanel) LinkedOut.forcePanel({ company: "", role: "", location: "", jobUrl: url, source: "", link: url, dateApplied: new Date().toISOString().slice(0, 10) });
+  }
 
   // SPA navigation detection (LinkedIn, etc.)
   function watchNavigation() {

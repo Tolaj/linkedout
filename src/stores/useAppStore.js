@@ -70,7 +70,7 @@ const useAppStore = create((set, get) => ({
     const appNumber = currentApps.length + 1;
     const app = { ...data, id: uid(), workspace, createdAt: new Date().toISOString() };
     set({ apps: [app, ...currentApps] });
-    try { await api.create("applications", app); } catch {}
+    try { await api.create("applications", app); } catch (e) { console.error("Failed to save application:", e.message); }
     createAppFolder(app, appNumber).catch(() => {});
     return app;
   },
@@ -80,13 +80,13 @@ const useAppStore = create((set, get) => ({
     if (!existing) return;
     const updated = { ...existing, ...data, id, updatedAt: new Date().toISOString() };
     set({ apps: get().apps.map((a) => (a.id === id ? updated : a)) });
-    try { await api.update("applications", id, updated); } catch {}
+    try { await api.update("applications", id, updated); } catch (e) { console.error("Failed to update application:", e.message); }
   },
 
   deleteApp: async (id) => {
     const app = get().apps.find((a) => a.id === id);
     set({ apps: get().apps.filter((a) => a.id !== id) });
-    try { await api.remove("applications", id); } catch {}
+    try { await api.remove("applications", id); } catch (e) { console.error("Failed to delete application:", e.message); }
     const emailStore = useEmailStore.getState();
     const linked = emailStore.emails.filter((e) => e.appId === id);
     for (const e of linked) {
@@ -107,7 +107,7 @@ const useAppStore = create((set, get) => ({
     if (!app) return;
     const updated = { ...app, status: newStatus, updatedAt: new Date().toISOString() };
     set({ apps: get().apps.map((a) => (a.id === id ? updated : a)) });
-    try { await api.update("applications", id, updated); } catch {}
+    try { await api.update("applications", id, updated); } catch (e) { console.error("Failed to update stage:", e.message); }
   },
 }));
 

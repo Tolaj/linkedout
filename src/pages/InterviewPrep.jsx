@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { BookOpen, Plus, Save, Trash2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import NoWorkspace from "../components/NoWorkspace";
 import useNoteStore from "../stores/useNoteStore";
 import { uid } from "../lib/constants";
@@ -19,7 +18,6 @@ export default function InterviewPrep() {
   const [newSection, setNewSection] = useState(SECTIONS[0]);
 
   const hasWorkspace = isFileSystemSupported() && hasRootDirectory();
-  const navigate = useNavigate();
   const folderName = useSettingsStore((s) => s.folderName);
 
   useEffect(() => {

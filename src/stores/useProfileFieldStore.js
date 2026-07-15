@@ -5,6 +5,7 @@ import { uid, DEFAULT_PROFILE_FIELDS } from "../lib/constants";
 const useProfileFieldStore = create((set, get) => ({
   fields: [],
   loaded: false,
+  _seeding: false,
 
   load: async () => {
     try {
@@ -17,19 +18,25 @@ const useProfileFieldStore = create((set, get) => ({
   },
 
   seedDefaults: async () => {
-    const { fields } = get();
-    const existingKeys = new Set(fields.map((f) => f.fieldKey));
-    const missing = DEFAULT_PROFILE_FIELDS.filter((d) => !existingKeys.has(d.fieldKey));
-    if (missing.length === 0) return;
+    if (get()._seeding) return;
+    set({ _seeding: true });
+    try {
+      const { fields } = get();
+      const existingKeys = new Set(fields.map((f) => f.fieldKey));
+      const missing = DEFAULT_PROFILE_FIELDS.filter((d) => !existingKeys.has(d.fieldKey));
+      if (missing.length === 0) return;
 
-    const newFields = missing.map((def) => ({
-      ...def,
-      id: uid(),
-      value: "",
-      createdAt: new Date().toISOString(),
-    }));
-    set({ fields: [...get().fields, ...newFields] });
-    try { await api.sync("profilefields", newFields); } catch {}
+      const newFields = missing.map((def) => ({
+        ...def,
+        id: uid(),
+        value: "",
+        createdAt: new Date().toISOString(),
+      }));
+      set({ fields: [...get().fields, ...newFields] });
+      try { await api.sync("profilefields", newFields); } catch {}
+    } finally {
+      set({ _seeding: false });
+    }
   },
 
   addField: async (data) => {
@@ -40,7 +47,8 @@ const useProfileFieldStore = create((set, get) => ({
   },
 
   updateField: async (id, data) => {
-    const updated = { ...data, id };
+    const existing = get().fields.find((f) => f.id === id);
+    const updated = { ...existing, ...data, id };
     set({ fields: get().fields.map((f) => (f.id === id ? updated : f)) });
     try { await api.update("profilefields", id, updated); } catch {}
   },

@@ -13,7 +13,7 @@ LinkedOut.STAGES = [
 LinkedOut.EMPTY_APP = {
   company: "", role: "", location: "", dateApplied: "", source: "LinkedIn",
   status: "Applied", resumeVersion: "", referral: "N", domain: "", workspace: "",
-  nextActionDate: "", notes: "", link: "",
+  nextActionDate: "", notes: "", link: "", formFields: [],
 };
 
 LinkedOut.uid = function () {

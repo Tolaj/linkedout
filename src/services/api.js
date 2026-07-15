@@ -12,7 +12,10 @@ async function request(path, options = {}) {
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
   if (!res.ok) {
     if (res.status === 401) {
-      throw new Error("Unauthorized");
+      localStorage.removeItem("linkedout_token");
+      localStorage.removeItem("linkedout_user");
+      window.location.href = "/login";
+      throw new Error("Session expired. Please log in again.");
     }
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || res.statusText);

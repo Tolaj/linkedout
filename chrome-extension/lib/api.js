@@ -90,6 +90,27 @@ LinkedOut.API = {
     }).catch(function () { return {}; });
   },
 
+  async getTodayApps() {
+    var all = await this._request("/applications");
+    if (all._unauthorized || !Array.isArray(all)) return all;
+    var today = new Date().toISOString().slice(0, 10);
+    return all.filter(function (a) { return a.dateApplied === today; });
+  },
+
+  async updateApplication(id, data) {
+    return this._request("/applications/" + id, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async saveProfileFields(fields) {
+    return this._request("/profilefields/sync", {
+      method: "POST",
+      body: JSON.stringify(fields),
+    });
+  },
+
   async logout() {
     await chrome.storage.local.remove(["linkedout_token", "linkedout_user"]);
   },

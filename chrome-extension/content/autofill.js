@@ -199,6 +199,76 @@ LinkedOut.autofill = {
     }, 3000);
   },
 
+  capture: function (answerBank) {
+    var formFields = this.scanFormFields();
+    var reverseMap = this._buildReverseMap();
+    var answerMap = {};
+    for (var i = 0; i < answerBank.length; i++) {
+      answerMap[answerBank[i].fieldKey] = answerBank[i];
+    }
+
+    var updates = [];
+    for (var j = 0; j < formFields.length; j++) {
+      var ff = formFields[j];
+      if (ff.fieldType === "file" || ff.fieldType === "password") continue;
+      var val = ff.element.value;
+      if (!val || !val.trim()) continue;
+      val = val.trim();
+
+      var normalized = this._normalize(ff.label);
+      if (!normalized) continue;
+
+      var matchedKey = null;
+
+      if (reverseMap[normalized]) matchedKey = reverseMap[normalized];
+
+      if (!matchedKey) {
+        for (var alias in reverseMap) {
+          if (normalized.includes(alias) || alias.includes(normalized)) {
+            matchedKey = reverseMap[alias];
+            break;
+          }
+        }
+      }
+
+      if (!matchedKey) {
+        var normTokens = normalized.split(/\s+/);
+        var bestScore = 0;
+        for (var alias2 in reverseMap) {
+          var aliasTokens = alias2.split(/\s+/);
+          var overlap = 0;
+          for (var t = 0; t < normTokens.length; t++) {
+            if (aliasTokens.indexOf(normTokens[t]) >= 0) overlap++;
+          }
+          var score = overlap / Math.max(normTokens.length, aliasTokens.length);
+          if (score > bestScore && score >= 0.5) {
+            bestScore = score;
+            matchedKey = reverseMap[alias2];
+          }
+        }
+      }
+
+      if (!matchedKey) continue;
+
+      var existing = answerMap[matchedKey];
+      if (existing && existing.value === val) continue;
+
+      if (existing) {
+        updates.push({ ...existing, value: val });
+      } else {
+        updates.push({
+          id: LinkedOut.uid(),
+          fieldKey: matchedKey,
+          label: matchedKey.replace(/_/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); }),
+          category: "custom",
+          type: "text",
+          value: val,
+        });
+      }
+    }
+    return updates;
+  },
+
   run: function (answerBank) {
     var formFields = this.scanFormFields();
     var matches = this.matchFields(formFields, answerBank);

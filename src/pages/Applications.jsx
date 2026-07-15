@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { Upload, FileText, Trash2, Edit3, ExternalLink, ChevronDown, ChevronRight, Plus, Send, ArrowUpRight, ArrowDownLeft, Users, RefreshCw } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import NoWorkspace from "../components/NoWorkspace";
 import useAppStore from "../stores/useAppStore";
 import useEmailStore from "../stores/useEmailStore";
@@ -34,7 +33,6 @@ export default function Applications() {
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
   const hasWorkspace = isFileSystemSupported() && hasRootDirectory();
-  const navigate = useNavigate();
   const folderName = useSettingsStore((s) => s.folderName);
 
   useEffect(() => {
@@ -73,6 +71,14 @@ export default function Applications() {
     setSyncMsg(parts.length ? parts.join(", ") : "No new emails");
     setSyncing(false);
     setTimeout(() => setSyncMsg(""), 5000);
+  }
+
+  if (hasWorkspace && !loaded) {
+    return (
+      <div className="p-6 flex items-center justify-center h-64">
+        <RefreshCw className="w-5 h-5 animate-spin text-base-400" />
+      </div>
+    );
   }
 
   if (!hasWorkspace) {
@@ -195,8 +201,11 @@ function AppRow({ app, color, domainEmails, isExpanded, onToggle, onEdit, onDele
       if (appNote) setNoteText(appNote.content || "");
       setNoteLoaded(true);
       if (isFileSystemSupported() && hasRootDirectory()) {
-        const folderName = `${sanitize(app.company)}_${sanitize(app.role)}`;
-        listFiles(`02_Applications/${folderName}`).then(setFiles).catch(() => {});
+        listFiles("02_Applications").then((entries) => {
+          const companySlug = sanitize(app.company);
+          const match = entries.find((e) => e.kind === "directory" && e.name.includes(companySlug));
+          if (match) listFiles(`02_Applications/${match.name}`).then(setFiles).catch(() => {});
+        }).catch(() => {});
       }
     }
   }, [isExpanded]);
@@ -209,8 +218,11 @@ function AppRow({ app, color, domainEmails, isExpanded, onToggle, onEdit, onDele
     const file = e.target.files[0];
     if (!file) return;
     if (isFileSystemSupported() && hasRootDirectory()) {
-      const folderName = `${sanitize(app.company)}_${sanitize(app.role)}`;
-      await createCompanyFolder(app.company, app.role);
+      const entries = await listFiles("02_Applications");
+      const companySlug = sanitize(app.company);
+      const match = entries.find((en) => en.kind === "directory" && en.name.includes(companySlug));
+      const folderName = match ? match.name : `${companySlug}_${sanitize(app.role)}`;
+      if (!match) await createCompanyFolder(app.company, app.role);
       await saveFile(`02_Applications/${folderName}/${file.name}`, file);
       const updated = await listFiles(`02_Applications/${folderName}`);
       setFiles(updated);
@@ -423,6 +435,25 @@ function AppRow({ app, color, domainEmails, isExpanded, onToggle, onEdit, onDele
                   />
                 </div>
               </div>
+
+              {/* Captured Form Fields */}
+              {app.formFields && app.formFields.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-base-300 mb-2">
+                    Application Form Data ({app.formFields.length} fields)
+                  </h3>
+                  <div className="border border-base-600 rounded-lg overflow-hidden">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-base-600">
+                      {app.formFields.map((f, i) => (
+                        <div key={i} className="bg-base-900 px-3 py-2">
+                          <div className="text-[10px] text-base-400 uppercase tracking-wider">{f.label}</div>
+                          <div className="text-xs text-base-100 mt-0.5 break-words">{f.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Extra info */}
               {(app.contact || app.notes || app.referral === "Y") && (

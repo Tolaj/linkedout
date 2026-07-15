@@ -55,7 +55,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         showView(loginView);
         return;
       }
-      showUserView(data.linkedout_user || user);
+      showUserView(user || data.linkedout_user);
     } catch {
       showView(loginView);
     }
@@ -70,11 +70,15 @@ document.addEventListener("DOMContentLoaded", async function () {
   function saveUrls() {
     var apiUrl = apiUrlInput.value.trim().replace(/\/+$/, "");
     var dashUrl = dashboardUrlInput.value.trim().replace(/\/+$/, "");
+    var toRemove = [];
     var toSave = {};
     if (apiUrl) toSave.linkedout_api_url = apiUrl;
+    else toRemove.push("linkedout_api_url");
     if (dashUrl) toSave.linkedout_dashboard_url = dashUrl;
-    if (Object.keys(toSave).length === 0) return Promise.resolve();
-    return chrome.storage.local.set(toSave);
+    else toRemove.push("linkedout_dashboard_url");
+    var p1 = Object.keys(toSave).length > 0 ? chrome.storage.local.set(toSave) : Promise.resolve();
+    var p2 = toRemove.length > 0 ? chrome.storage.local.remove(toRemove) : Promise.resolve();
+    return Promise.all([p1, p2]);
   }
 
   saveUrlBtn.addEventListener("click", async function () {
@@ -115,6 +119,14 @@ document.addEventListener("DOMContentLoaded", async function () {
     showView(loginView);
     emailInput.value = "";
     passwordInput.value = "";
+  });
+
+  document.getElementById("show-panel").addEventListener("click", async function () {
+    var [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab && tab.id) {
+      chrome.tabs.sendMessage(tab.id, { type: "FORCE_PANEL" });
+      window.close();
+    }
   });
 
   openDashboard.addEventListener("click", async function () {

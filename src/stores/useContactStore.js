@@ -23,7 +23,8 @@ const useContactStore = create((set, get) => ({
   },
 
   updateContact: async (id, data) => {
-    const updated = { ...data, id };
+    const existing = get().contacts.find((c) => c.id === id);
+    const updated = { ...existing, ...data, id };
     set({ contacts: get().contacts.map((c) => (c.id === id ? updated : c)) });
     try { await api.update("contacts", id, updated); } catch {}
   },

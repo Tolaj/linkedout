@@ -18,7 +18,7 @@ export const STAGE_COLOR = {
 
 export const SOURCES = [
   "LinkedIn", "Referral", "Company Site", "Handshake",
-  "Career Fair", "Indeed", "Recruiter Outreach", "Cold Email", "Other",
+  "Career Fair", "Indeed", "Recruiter Outreach", "Cold Email", "Glassdoor", "Other",
 ];
 
 
@@ -39,7 +39,7 @@ export const FOLDER_STRUCTURE = [
 export const EMPTY_APP = {
   company: "", role: "", location: "", dateApplied: "", source: "LinkedIn",
   status: "Applied", resumeVersion: "", referral: "N", domain: "", workspace: "",
-  nextActionDate: "", notes: "", link: "",
+  nextActionDate: "", notes: "", link: "", formFields: [],
 };
 
 export function uid() {

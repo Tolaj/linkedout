@@ -65,6 +65,33 @@ LinkedOut.extractors.push({
       }
     }
 
+    // 9. Negative: job LISTING / search results pages (not a single job posting)
+    var listingUrlWords = /\/(jobs|careers|openings|positions|search|results|listings|browse|explore|categories?|departments?)\/?(\?|$|#)/i;
+    if (listingUrlWords.test(window.location.pathname + window.location.search)) {
+      score -= 4; reasons.push("neg-listing-url");
+    }
+    // Multiple job cards = listing page
+    var jobCards = doc.querySelectorAll('[class*="job-card" i], [class*="jobCard" i], [class*="job_card" i], [class*="job-item" i], [class*="job-result" i], [class*="job-listing" i], [data-testid*="job-card"], [data-testid*="job-result"]');
+    if (jobCards.length >= 3) { score -= 5; reasons.push("neg-cards(" + jobCards.length + ")"); }
+    // Many links to individual job pages
+    var jobLinks = doc.querySelectorAll('a[href*="/job/"], a[href*="/jobs/"], a[href*="/position/"], a[href*="/opening/"], a[href*="/career/"]');
+    var uniqueJobLinks = new Set();
+    for (var jl = 0; jl < jobLinks.length; jl++) {
+      var href = jobLinks[jl].getAttribute("href") || "";
+      if (href.length > 10) uniqueJobLinks.add(href);
+    }
+    if (uniqueJobLinks.size >= 5) { score -= 5; reasons.push("neg-joblinks(" + uniqueJobLinks.size + ")"); }
+    // Search filters (dropdowns, keyword inputs in search bars)
+    var filterIndicators = doc.querySelectorAll('[class*="filter" i], [class*="search-bar" i], [class*="searchbar" i], [class*="facet" i], [aria-label*="filter" i], [aria-label*="search" i], [class*="sort-by" i], [class*="refine" i]');
+    if (filterIndicators.length >= 3) { score -= 3; reasons.push("neg-filters(" + filterIndicators.length + ")"); }
+    // Title patterns like "Top X Jobs", "Best X Jobs", "X Jobs in Y"
+    if (/\b(top|best|all|\d+\+?)\s+(software|engineer|developer|data|design|product|marketing)?\s*(jobs?|positions?|openings?|careers?)\s+(in|near|at)\b/i.test(pageTitle)) {
+      score -= 5; reasons.push("neg-listing-title");
+    }
+    // Pagination
+    var pagination = doc.querySelector('[class*="pagination" i], [aria-label*="pagination" i], nav[role="navigation"] a[href*="page"]');
+    if (pagination) { score -= 2; reasons.push("neg-pagination"); }
+
     // Need enough evidence
     if (score < 4) return null;
 
@@ -138,7 +165,7 @@ LinkedOut.extractors.push({
       role: role,
       location: location,
       domain: domain,
-      source: window.location.hostname.replace(/^(www|jobs|careers)\./,""),
+      source: "Company Site",
       link: window.location.href.replace(/\/apply.*$/, ""),
       dateApplied: new Date().toISOString().slice(0, 10),
     };

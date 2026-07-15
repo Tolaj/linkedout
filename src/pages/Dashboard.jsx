@@ -125,6 +125,11 @@ export default function Dashboard() {
       </div>
 
       {/* Board */}
+      {apps.length === 0 ? (
+        <div className="text-center py-16 text-base-400 text-sm">
+          No applications logged yet. Click "Log application" to add your first one.
+        </div>
+      ) : (
       <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-320px)] min-h-[400px]">
         {KANBAN_COLUMNS.map((col) => {
           const c = STAGE_COLOR[col] || { dot: "bg-[#6B7280]", ring: "border-[#6B7280]", text: "text-[#6B7280]", bg: "bg-[#F9FAFB]" };
@@ -158,11 +163,6 @@ export default function Dashboard() {
           );
         })}
       </div>
-
-      {apps.length === 0 && (
-        <div className="text-center py-16 text-base-400 text-sm">
-          No applications logged yet. Click "Log application" to add your first one.
-        </div>
       )}
 
       {modalOpen && (
