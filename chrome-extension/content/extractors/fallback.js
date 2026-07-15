@@ -28,6 +28,10 @@ LinkedOut.extractors.push({
     var atsDomains = /jobvite|icims|taleo|workable|breezy|smartrecruiters|ashbyhq|rippling|bamboohr|paylocity|paycom|adp\.|ultipro|successfactors|cornerstoneondemand|jazz\.co|applytojob|recruitee|personio|join\.com/;
     if (atsDomains.test(window.location.hostname)) { score += 5; reasons.push("ats"); }
 
+    // 2b. Embedded ATS iframes (Greenhouse, Lever, etc.)
+    var atsIframes = doc.querySelectorAll('iframe[src*="greenhouse.io"], iframe[src*="lever.co"], iframe[src*="jobvite.com"], iframe[src*="workday.com"], iframe[src*="icims.com"], iframe[src*="smartrecruiters.com"]');
+    if (atsIframes.length > 0) { score += 5; reasons.push("ats-iframe"); }
+
     // 3. JSON-LD JobPosting
     var jsonLdResult = extractJsonLd(doc);
     if (jsonLdResult) return jsonLdResult;
@@ -36,7 +40,17 @@ LinkedOut.extractors.push({
     var roleWords = /engineer|developer|designer|manager|analyst|scientist|director|coordinator|specialist|architect|lead|intern|associate|consultant|programmer|administrator|technician|operator|devops|sre|qa|tester|recruiter|sales|marketing|product|data|software|frontend|backend|fullstack|full.stack/i;
     if (roleWords.test(pageTitle)) { score += 3; reasons.push("title"); }
 
-    // 5. Form fields that look like job applications
+    // 5. Resume/cover letter text on page — very strong signal
+    var bodyText = doc.body ? doc.body.innerText : "";
+    if (/autofill\s+(from|with|using)\s+resume/i.test(bodyText) ||
+        /upload\s+(your\s+)?resume\s+(here\s+)?to\s+autofill/i.test(bodyText)) {
+      score += 5; reasons.push("resume-autofill");
+    }
+    if (/cover\s*letter/i.test(bodyText) && /resume|cv/i.test(bodyText)) {
+      score += 4; reasons.push("cover-letter+resume");
+    }
+
+    // 6. Form fields that look like job applications
     var formSignals = detectApplicationForm(doc);
     if (formSignals >= 3) { score += 4; reasons.push("form(" + formSignals + ")"); }
     else if (formSignals >= 2) { score += 2; reasons.push("form(" + formSignals + ")"); }

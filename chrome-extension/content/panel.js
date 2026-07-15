@@ -159,8 +159,9 @@ window.LinkedOut = window.LinkedOut || {};
     .lo-body.lo-collapsed { display: none; }
     .lo-field { margin-bottom: 10px; }
     .lo-label {
-      display: block; font-size: 11px; color: #A3A3A3; margin-bottom: 3px;
+      display: block; font-size: 10px; color: #A3A3A3; margin-bottom: 4px;
       text-transform: uppercase; letter-spacing: 0.5px;
+      line-height: 1; white-space: nowrap;
     }
     .lo-input, .lo-select, .lo-textarea {
       width: 100%; background: #262626; border: 1px solid #525252;
@@ -196,7 +197,7 @@ window.LinkedOut = window.LinkedOut || {};
     .lo-btn-secondary:hover { background: rgba(255,255,255,0.08); }
     .lo-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    .lo-status { font-size: 12px; padding: 6px 16px; text-align: center; flex-shrink: 0; }
+    .lo-status { font-size: 12px; padding: 6px 16px 12px; text-align: center; flex-shrink: 0; }
     .lo-status-success { color: #16A34A; }
     .lo-status-error { color: #DC2626; }
     .lo-status-warn { color: #D97706; }
@@ -211,15 +212,15 @@ window.LinkedOut = window.LinkedOut || {};
     .lo-compact-btn:hover { background: #e5e5e5; }
 
     .lo-detail-row {
-      display: flex; align-items: flex-start; gap: 6px; margin-bottom: 6px;
+      display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 6px; margin-bottom: 6px;
     }
     .lo-detail-label {
-      flex-shrink: 0; width: 100px; font-size: 11px; color: #737373;
-      text-transform: uppercase; letter-spacing: 0.3px; padding-top: 8px;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      width: 100%; font-size: 10px; color: #737373;
+      text-transform: uppercase; letter-spacing: 0.3px;
+      line-height: 1; margin-bottom: 2px;
     }
     .lo-detail-value {
-      flex: 1; background: #262626; border: 1px solid #333; border-radius: 5px;
+      flex: 1; min-width: 150px; background: #262626; border: 1px solid #333; border-radius: 5px;
       padding: 6px 8px; color: #E5E5E5; font-size: 12px; font-family: inherit;
       outline: none; box-sizing: border-box;
     }
@@ -315,7 +316,10 @@ window.LinkedOut = window.LinkedOut || {};
 
   function buildDetailsTab(fields) {
     if (!fields || fields.length === 0) {
-      return `<div class="lo-details-empty">No form fields detected yet.<br/>Fill out the application form, then click <strong>Scan</strong>.</div>
+      var emptyMsg = hasEmbeddedAtsIframe()
+        ? 'Application form is inside an embedded iframe.<br/>Scan and autofill are not available on embedded forms.'
+        : 'No form fields detected yet.<br/>Fill out the application form, then click <strong>Scan</strong>.';
+      return `<div class="lo-details-empty">${emptyMsg}</div>
       <div class="lo-details-actions"><button class="lo-btn-sm" id="lo-scan">&#x1F50D; Scan Page</button></div>`;
     }
     var rows = fields.map(function(f,i){
@@ -366,6 +370,11 @@ window.LinkedOut = window.LinkedOut || {};
 
   var SEARCH_LABELS = /^(search|keyword|find|sort|filter|order\s*by|results?\s*per|page\s*size|show|display|view\s*as|job\s*title.*keyword|job\s*category|save\s*job\s*alert|search\s*area|within\s*\d+)/i;
 
+  function hasEmbeddedAtsIframe() {
+    var atsIframes = document.querySelectorAll('iframe[src*="greenhouse.io"], iframe[src*="lever.co"], iframe[src*="jobvite.com"], iframe[src*="workday.com"], iframe[src*="icims.com"], iframe[src*="smartrecruiters.com"]');
+    return atsIframes.length > 0;
+  }
+
   function scanPageFields() {
     var fields = [];
     try {
@@ -373,9 +382,12 @@ window.LinkedOut = window.LinkedOut || {};
       for (var i = 0; i < allInputs.length; i++) {
         var el = allInputs[i];
         if (el.type === "hidden" || el.type === "submit" || el.type === "button" || el.type === "password" || el.type === "file") continue;
+        if (el.offsetParent === null && !el.closest("details")) continue;
+        if (el.offsetWidth === 0 || el.offsetHeight === 0) continue;
         if (isInsideSearchFilter(el)) continue;
         var label = LinkedOut.autofill._extractLabel(el);
         if (!label) continue;
+        if (label.length < 3) continue;
         if (SEARCH_LABELS.test(label)) continue;
         var val = "";
         if (el.tagName === "SELECT") {
@@ -515,7 +527,13 @@ window.LinkedOut = window.LinkedOut || {};
       scanBtn.addEventListener("click", function () {
         capturedFields = scanPageFields();
         refreshDetailsTab(sr);
-        showStatus(capturedFields.length > 0 ? "Captured " + capturedFields.length + " fields" : "No filled fields found", capturedFields.length > 0 ? "success" : "warn");
+        if (capturedFields.length > 0) {
+          showStatus("Captured " + capturedFields.length + " fields", "success");
+        } else if (hasEmbeddedAtsIframe()) {
+          showStatus("Form is inside an embedded iframe — scan and autofill not available here", "warn");
+        } else {
+          showStatus("No filled fields found", "warn");
+        }
       });
     }
     sr.querySelectorAll(".lo-detail-remove").forEach(function (btn) {
@@ -888,7 +906,7 @@ window.LinkedOut = window.LinkedOut || {};
       container.innerHTML = buildTodayCards(apps, currentId, todayDrafts);
       bindTodayCards(sr, apps, todayDrafts);
     } catch (e) {
-      container.innerHTML = '<div class="lo-no-apps">Failed to load</div>';
+      container.innerHTML = '<div class="lo-no-apps">No applications tracked today yet.</div>';
     }
   }
 

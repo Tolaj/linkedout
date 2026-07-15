@@ -3,7 +3,7 @@
   "name": "LinkedOut - Job Application Tracker",
   "version": "1.0.0",
   "description": "Auto-detect job postings and track applications in LinkedOut",
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": [
     "*://*.linkedin.com/*",
     "*://*.indeed.com/*",
@@ -12,7 +12,20 @@
     "*://*.glassdoor.com/*",
     "*://*.myworkdayjobs.com/*",
     "*://*.workday.com/*",
-    "*://*.jobvite.com/*"
+    "*://*.jobvite.com/*",
+    "*://*.ashbyhq.com/*",
+    "*://*.icims.com/*",
+    "*://*.smartrecruiters.com/*",
+    "*://*.taleo.net/*",
+    "*://*.breezy.hr/*",
+    "*://*.workable.com/*",
+    "*://*.bamboohr.com/*",
+    "*://*.rippling.com/*",
+    "*://*.personio.com/*",
+    "*://*.recruitee.com/*",
+    "*://*.jazz.co/*",
+    "*://*.paylocity.com/*",
+    "*://*.dayforce.com/*"
   ],
   "background": {
     "service_worker": "background/service-worker.js"
@@ -27,7 +40,49 @@
         "*://*.glassdoor.com/*",
         "*://*.myworkdayjobs.com/*",
         "*://*.workday.com/*/job/*",
-        "*://*.jobvite.com/*"
+        "*://*.jobvite.com/*",
+        "*://*.ashbyhq.com/*",
+        "*://*.icims.com/*",
+        "*://*.smartrecruiters.com/*",
+        "*://*.taleo.net/*",
+        "*://*.breezy.hr/*",
+        "*://*.workable.com/*",
+        "*://*.bamboohr.com/*",
+        "*://*.rippling.com/*",
+        "*://*.personio.com/*",
+        "*://*.recruitee.com/*",
+        "*://*.jazz.co/*",
+        "*://*.paylocity.com/*",
+        "*://*.dayforce.com/*"
+      ],
+      "js": [
+        "lib/constants.js",
+        "lib/api.js",
+        "content/extractors/linkedin.js",
+        "content/extractors/indeed.js",
+        "content/extractors/greenhouse.js",
+        "content/extractors/lever.js",
+        "content/extractors/workday.js",
+        "content/extractors/glassdoor.js",
+        "content/extractors/jobvite.js",
+        "content/extractors/fallback.js",
+        "content/fieldAliases.js",
+        "content/autofill.js",
+        "content/detector.js",
+        "content/panel.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://*/careers/*",
+        "*://*/career/*",
+        "*://*/jobs/*",
+        "*://*/job/*",
+        "*://*/apply/*",
+        "*://*/hiring/*",
+        "*://*/openings/*",
+        "*://*/positions/*"
       ],
       "js": [
         "lib/constants.js",

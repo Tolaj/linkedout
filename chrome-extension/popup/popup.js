@@ -123,8 +123,37 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   document.getElementById("show-panel").addEventListener("click", async function () {
     var [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab && tab.id) {
-      chrome.tabs.sendMessage(tab.id, { type: "FORCE_PANEL" });
+    if (!tab || !tab.id) return;
+
+    try {
+      await chrome.tabs.sendMessage(tab.id, { type: "FORCE_PANEL" });
+      window.close();
+    } catch (e) {
+      // Content scripts not injected on this page — inject them now
+      var scripts = [
+        "lib/constants.js",
+        "lib/api.js",
+        "content/extractors/linkedin.js",
+        "content/extractors/indeed.js",
+        "content/extractors/greenhouse.js",
+        "content/extractors/lever.js",
+        "content/extractors/workday.js",
+        "content/extractors/glassdoor.js",
+        "content/extractors/jobvite.js",
+        "content/extractors/fallback.js",
+        "content/fieldAliases.js",
+        "content/autofill.js",
+        "content/detector.js",
+        "content/panel.js",
+      ];
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: scripts,
+      });
+      // detector.js auto-runs detection after 1s — wait for that, then force panel
+      setTimeout(function () {
+        chrome.tabs.sendMessage(tab.id, { type: "FORCE_PANEL" }).catch(function () {});
+      }, 1500);
       window.close();
     }
   });
