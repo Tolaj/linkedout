@@ -8,7 +8,7 @@ import { useState } from "react";
 import useAuthStore from "../stores/useAuthStore";
 
 const NAV = [
-  { to: "/", icon: LayoutDashboard, label: "Pipeline" },
+  { to: "/dashboard", icon: LayoutDashboard, label: "Pipeline" },
   { to: "/emails", icon: Mail, label: "Emails" },
   { to: "/resumes", icon: FileText, label: "Resumes" },
   { to: "/applications", icon: FolderOpen, label: "Applications" },
@@ -44,7 +44,7 @@ export default function Layout() {
             <NavLink
               key={to}
               to={to}
-              end={to === "/"}
+              end={to === "/dashboard"}
               onClick={() => setOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${

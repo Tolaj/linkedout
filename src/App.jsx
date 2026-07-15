@@ -3,6 +3,7 @@ import { useEffect, lazy, Suspense, Component } from "react";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Landing from "./pages/Landing";
 import useAuthStore from "./stores/useAuthStore";
 import { restoreRootDirectory } from "./services/fileSystem";
 
@@ -25,7 +26,7 @@ class ErrorBoundary extends Component {
             <h1 className="text-xl font-bold text-base-100 mb-2">Something went wrong</h1>
             <p className="text-base-400 text-sm mb-4">{this.state.error.message}</p>
             <button
-              onClick={() => { this.setState({ error: null }); window.location.href = "/"; }}
+              onClick={() => { this.setState({ error: null }); window.location.href = "/dashboard"; }}
               className="px-4 py-2 bg-base-100 text-base-800 rounded-lg text-sm font-medium"
             >
               Go to Dashboard
@@ -54,7 +55,7 @@ function ProtectedRoute({ children }) {
 function GuestRoute({ children }) {
   const { token, loading } = useAuthStore();
   if (loading) return <div className="min-h-screen bg-base-800" />;
-  if (token) return <Navigate to="/" replace />;
+  if (token) return <Navigate to="/dashboard" replace />;
   return children;
 }
 
@@ -71,17 +72,18 @@ export default function App() {
       <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
           <Routes>
+            <Route path="/" element={<GuestRoute><Landing /></GuestRoute>} />
             <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
             <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-              <Route index element={<Dashboard />} />
+              <Route path="dashboard" element={<Dashboard />} />
               <Route path="emails" element={<ColdEmails />} />
               <Route path="resumes" element={<Resumes />} />
               <Route path="applications" element={<Applications />} />
               <Route path="quick-apply" element={<QuickApply />} />
               <Route path="prep" element={<InterviewPrep />} />
               <Route path="settings" element={<Settings />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
           </Routes>
         </Suspense>
