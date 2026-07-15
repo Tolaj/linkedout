@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import useAuthStore from "../stores/useAuthStore";
 import Logo from "../components/Logo";
 
@@ -26,10 +26,10 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-base-800 px-4">
       <div className="w-full max-w-sm">
-        <div className="flex items-center gap-2 justify-center mb-8">
+        <Link to="/" className="flex items-center gap-2 justify-center mb-8">
           <Logo size={32} />
           <span className="font-mono font-bold text-lg tracking-tight text-base-100">linkedout</span>
-        </div>
+        </Link>
 
         <div className="bg-base-900 border border-base-600 rounded-xl p-6">
           <h1 className="text-lg font-semibold mb-1">Sign in</h1>

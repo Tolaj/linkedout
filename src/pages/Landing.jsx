@@ -81,10 +81,10 @@ export default function Landing() {
       {/* Nav */}
       <nav className="border-b border-base-600">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2">
             <Logo size={28} />
             <span className="font-mono font-bold text-base-100 text-lg">LinkedOut</span>
-          </div>
+          </Link>
           <div className="flex items-center gap-3">
             <Link to="/login" className="text-sm text-base-300 hover:text-base-100 transition-colors">
               Log in

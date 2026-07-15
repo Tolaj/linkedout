@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, Link } from "react-router-dom";
 import {
   LayoutDashboard, Mail, FileText, FolderOpen,
   Zap, BookOpen, Settings, Menu, LogOut,
@@ -34,10 +34,10 @@ export default function Layout() {
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center gap-2 px-5 py-5 border-b border-base-600">
+        <Link to="/" className="flex items-center gap-2 px-5 py-5 border-b border-base-600">
           <Logo size={28} />
           <span className="font-mono font-bold text-sm tracking-tight">linkedout</span>
-        </div>
+        </Link>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
           {NAV.map(({ to, icon: Icon, label }) => (
