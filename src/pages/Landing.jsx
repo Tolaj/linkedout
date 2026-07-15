@@ -31,6 +31,21 @@ const FEATURES = [
     desc: "Save your info once, autofill everywhere. Name, email, work authorization, links — all matched intelligently to form fields.",
   },
   {
+    icon: Mail,
+    title: "Email Tracking",
+    desc: "Connect your Gmail to automatically detect application confirmations, interview invites, and recruiter responses.",
+  },
+  {
+    icon: Send,
+    title: "Cold Email Outreach",
+    desc: "Draft and send personalized cold emails to recruiters and hiring managers directly from the dashboard with templates.",
+  },
+  {
+    icon: Sparkles,
+    title: "AI-Powered Assistance",
+    desc: "Generate cold emails, interview prep notes, and application insights using built-in AI integration.",
+  },
+  {
     icon: BarChart3,
     title: "Pipeline Dashboard",
     desc: "See your entire job search at a glance. Track response rates, interview rates, and manage applications across stages.",
@@ -94,8 +109,9 @@ export default function Landing() {
           Stop losing track of where you applied
         </h1>
         <p className="text-lg text-base-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-          LinkedOut auto-detects job postings, tracks your applications, and autofills
-          repetitive form fields — so you can focus on landing the job, not managing spreadsheets.
+          LinkedOut auto-detects job postings, tracks applications, autofills forms,
+          monitors your email for responses, and helps you send cold emails with AI — so you
+          can focus on landing the job, not managing spreadsheets.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <a
