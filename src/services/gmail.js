@@ -237,16 +237,23 @@ export async function searchInboxEmails(query, maxResults = 50) {
   const data = await res.json();
   if (!data.messages) return [];
 
-  const details = await Promise.all(
-    data.messages.map(async (m) => {
-      const r = await gmailFetch(
-        `https://www.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`
-      );
-      if (!r.ok) return null;
-      return r.json();
-    })
-  );
-  return details.filter(Boolean);
+  const BATCH = 5;
+  const results = [];
+  for (let i = 0; i < data.messages.length; i += BATCH) {
+    const chunk = data.messages.slice(i, i + BATCH);
+    const details = await Promise.all(
+      chunk.map(async (m) => {
+        const r = await gmailFetch(
+          `https://www.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`
+        );
+        if (!r.ok) return null;
+        return r.json();
+      })
+    );
+    results.push(...details.filter(Boolean));
+    if (i + BATCH < data.messages.length) await new Promise((r) => setTimeout(r, 200));
+  }
+  return results;
 }
 
 function extractHeader(msg, name) {

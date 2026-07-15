@@ -115,7 +115,7 @@ async function applyDecision(decision, parsed, addEmail, result) {
       notes: "",
     });
     await trackEmail(addEmail, parsed, newApp);
-    await markProcessed(parsed.gmailId, "tracked");
+    await markProcessed(parsed.gmailId, "tracked", parsed.date);
     result.created++;
     result.added++;
   } else if (decision.action === "link_to_application" && decision.appId) {
@@ -123,11 +123,11 @@ async function applyDecision(decision, parsed, addEmail, result) {
     if (app) {
       await ensureAppDomain(app, parsed.from);
       await trackEmail(addEmail, parsed, app);
-      await markProcessed(parsed.gmailId, "tracked");
+      await markProcessed(parsed.gmailId, "tracked", parsed.date);
       result.linked++;
       result.added++;
     } else {
-      await markProcessed(parsed.gmailId, "skipped");
+      await markProcessed(parsed.gmailId, "skipped", parsed.date);
     }
   } else if (decision.action === "update_application_stage" && decision.appId) {
     const app = currentApps.find((a) => a.id === decision.appId);
@@ -135,15 +135,35 @@ async function applyDecision(decision, parsed, addEmail, result) {
       await ensureAppDomain(app, parsed.from);
       await useAppStore.getState().updateApp(app.id, { ...app, status: decision.newStage });
       await trackEmail(addEmail, parsed, app);
-      await markProcessed(parsed.gmailId, "tracked");
+      await markProcessed(parsed.gmailId, "tracked", parsed.date);
       result.updated++;
       result.added++;
     } else {
-      await markProcessed(parsed.gmailId, "skipped");
+      await markProcessed(parsed.gmailId, "skipped", parsed.date);
     }
   } else {
-    await markProcessed(parsed.gmailId, "skipped");
+    await markProcessed(parsed.gmailId, "skipped", parsed.date);
   }
+}
+
+function buildSyncQuery(llmActive, apps, lastProcessedDate) {
+  // Gmail's after: uses epoch seconds and is date-only (not time-precise),
+  // so subtract 1 day as buffer to avoid missing emails at the boundary
+  let afterClause = "";
+  if (lastProcessedDate) {
+    const d = new Date(lastProcessedDate);
+    d.setDate(d.getDate() - 1);
+    const epoch = Math.floor(d.getTime() / 1000);
+    afterClause = ` after:${epoch}`;
+  }
+
+  if (llmActive) {
+    return "in:inbox" + (afterClause || " newer_than:7d");
+  }
+
+  const domainQuery = buildQuery(apps);
+  if (!domainQuery) return null;
+  return domainQuery + afterClause;
 }
 
 export async function syncInboundEmails(onProgress) {
@@ -160,23 +180,17 @@ export async function syncInboundEmails(onProgress) {
     const myEmail = await getUserEmail();
     const llmActive = isLlmEnabled();
 
-    // Ensure processed emails are loaded from DB
     const peStore = useProcessedEmailStore.getState();
     if (!peStore.loaded) await peStore.load();
     const processedIds = peStore.getProcessedIds();
-    const skippedIds = peStore.getSkippedIds();
+    const lastProcessedDate = peStore.getLastProcessedDate();
 
-    console.log("[EmailSync] Starting sync — apps:", apps.length, "llmActive:", llmActive, "processed:", processedIds.size, "skipped:", skippedIds.size);
+    console.log("[EmailSync] Starting sync — apps:", apps.length, "llmActive:", llmActive, "processed:", processedIds.size, "lastDate:", lastProcessedDate);
 
-    let query;
-    if (llmActive) {
-      query = "in:inbox newer_than:7d";
-    } else {
-      query = buildQuery(apps);
-      if (!query) {
-        console.warn("[EmailSync] No domains configured and LLM disabled — nothing to sync");
-        return result;
-      }
+    const query = buildSyncQuery(llmActive, apps, lastProcessedDate);
+    if (!query) {
+      console.warn("[EmailSync] No domains configured and LLM disabled — nothing to sync");
+      return result;
     }
     console.log("[EmailSync] Query:", query);
 
@@ -213,7 +227,7 @@ export async function syncInboundEmails(onProgress) {
     // Track rule-matched emails immediately
     for (const { parsed, app } of ruleMatched) {
       await trackEmail(addEmail, parsed, app);
-      await markProcessed(parsed.gmailId, "tracked");
+      await markProcessed(parsed.gmailId, "tracked", parsed.date);
       seenGmailIds.add(parsed.gmailId);
       seenThreadIds.add(parsed.threadId);
       result.added++;
@@ -222,12 +236,10 @@ export async function syncInboundEmails(onProgress) {
     if (!llmActive) return result;
 
     // Pre-filter obvious non-job domains
-    const candidates = unmatched.filter((p) => {
-      if (isSkipDomain(p.from)) return false;
-      return true;
-    });
-    // Bulk-mark pre-filtered as skipped
-    const preFilterSkipped = unmatched.filter((p) => isSkipDomain(p.from)).map((p) => p.gmailId);
+    const candidates = unmatched.filter((p) => !isSkipDomain(p.from));
+    const preFilterSkipped = unmatched
+      .filter((p) => isSkipDomain(p.from))
+      .map((p) => ({ gmailId: p.gmailId, emailDate: p.date }));
     if (preFilterSkipped.length > 0) await markProcessedBulk(preFilterSkipped, "skipped");
     console.log("[EmailSync] After pre-filter:", candidates.length, "candidates (skipped", preFilterSkipped.length, "spam domains)");
 
@@ -302,19 +314,19 @@ export async function syncInboundEmails(onProgress) {
               await applyDecision(decision, parsed, addEmail, result);
             }
             const handledIndexes = new Set(response.results.map((r) => r.emailIndex));
-            const missedIds = [];
+            const missed = [];
             for (let i = 0; i < batch.length; i++) {
-              if (!handledIndexes.has(i)) missedIds.push(batch[i].gmailId);
+              if (!handledIndexes.has(i)) missed.push({ gmailId: batch[i].gmailId, emailDate: batch[i].date });
             }
-            if (missedIds.length > 0) await markProcessedBulk(missedIds, "skipped");
+            if (missed.length > 0) await markProcessedBulk(missed, "skipped");
           } else {
-            await markProcessedBulk(batch.map((p) => p.gmailId), "skipped");
+            await markProcessedBulk(batch.map((p) => ({ gmailId: p.gmailId, emailDate: p.date })), "skipped");
           }
         } catch (e) {
           const isRateLimit = e.message?.includes("rate limit");
           console.error("[EmailSync] Batch", b + 1, "failed:", isRateLimit ? "(rate limited, will retry next sync)" : e.message);
           if (!isRateLimit) {
-            await markProcessedBulk(batch.map((p) => p.gmailId), "skipped");
+            await markProcessedBulk(batch.map((p) => ({ gmailId: p.gmailId, emailDate: p.date })), "skipped");
           }
         }
       }

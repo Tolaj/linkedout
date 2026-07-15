@@ -374,7 +374,14 @@ function AppRow({ app, color, domainEmails, isExpanded, onToggle, onEdit, onDele
                               <div className="text-base-400">{e.recipientEmail}</div>
                             </td>
                             <td className="px-3 py-2">{e.subject}</td>
-                            <td className="px-3 py-2 text-base-300">{e.sentAt ? format(parseISO(e.sentAt), "MMM d, yyyy") : "—"}</td>
+                            <td className="px-3 py-2 text-base-300 whitespace-nowrap">
+                              {e.sentAt ? (
+                                <>
+                                  <div>{format(parseISO(e.sentAt), "MMM d, yyyy")}</div>
+                                  <div className="text-[11px] text-base-400">{format(parseISO(e.sentAt), "h:mm a")}</div>
+                                </>
+                              ) : "—"}
+                            </td>
                             <td className="px-3 py-2">
                               {e.direction === "inbound" ? (
                                 <span className="text-xs text-[#2563EB]">received</span>

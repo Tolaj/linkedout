@@ -214,7 +214,14 @@ function EmailTracker({ emails, updateEmail, deleteEmail, apps = [] }) {
                     <span className="bg-base-700 text-base-200 text-xs px-2 py-0.5 rounded">{appLabel}</span>
                   ) : <span className="text-base-400">—</span>}
                 </td>
-                <td className="px-4 py-3 text-base-300">{e.sentAt ? format(parseISO(e.sentAt), "MMM d") : "—"}</td>
+                <td className="px-4 py-3 text-base-300 whitespace-nowrap">
+                  {e.sentAt ? (
+                    <>
+                      <div>{format(parseISO(e.sentAt), "MMM d")}</div>
+                      <div className="text-[11px] text-base-400">{format(parseISO(e.sentAt), "h:mm a")}</div>
+                    </>
+                  ) : "—"}
+                </td>
                 <td className="px-4 py-3">
                   {e.followUpDate ? (
                     <span className={`text-xs ${needsFollowUp ? "text-[#D97706] font-medium" : "text-base-300"}`}>
