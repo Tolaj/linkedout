@@ -43,7 +43,7 @@ export const EMPTY_APP = {
 };
 
 export function uid() {
-  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  return crypto.randomUUID().replace(/-/g, "").slice(0, 16);
 }
 
 export const PROFILE_CATEGORIES = ["personal", "work", "education", "links", "eeo", "custom"];

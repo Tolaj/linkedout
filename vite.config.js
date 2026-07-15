@@ -42,4 +42,16 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom", "react-router-dom"],
+          state: ["zustand"],
+          ui: ["lucide-react", "date-fns"],
+        },
+      },
+    },
+  },
 });

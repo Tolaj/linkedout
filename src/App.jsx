@@ -1,17 +1,48 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense, Component } from "react";
 import Layout from "./components/Layout";
-import Dashboard from "./pages/Dashboard";
-import ColdEmails from "./pages/ColdEmails";
-import Resumes from "./pages/Resumes";
-import Applications from "./pages/Applications";
-import InterviewPrep from "./pages/InterviewPrep";
-import Settings from "./pages/Settings";
-import QuickApply from "./pages/QuickApply";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import useAuthStore from "./stores/useAuthStore";
 import { restoreRootDirectory } from "./services/fileSystem";
+
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const ColdEmails = lazy(() => import("./pages/ColdEmails"));
+const Resumes = lazy(() => import("./pages/Resumes"));
+const Applications = lazy(() => import("./pages/Applications"));
+const InterviewPrep = lazy(() => import("./pages/InterviewPrep"));
+const Settings = lazy(() => import("./pages/Settings"));
+const QuickApply = lazy(() => import("./pages/QuickApply"));
+
+class ErrorBoundary extends Component {
+  state = { error: null };
+  static getDerivedStateFromError(error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="min-h-screen bg-base-800 flex items-center justify-center p-8">
+          <div className="max-w-md text-center">
+            <h1 className="text-xl font-bold text-base-100 mb-2">Something went wrong</h1>
+            <p className="text-base-400 text-sm mb-4">{this.state.error.message}</p>
+            <button
+              onClick={() => { this.setState({ error: null }); window.location.href = "/"; }}
+              className="px-4 py-2 bg-base-100 text-base-800 rounded-lg text-sm font-medium"
+            >
+              Go to Dashboard
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function PageLoader() {
+  return <div className="min-h-screen bg-base-800 flex items-center justify-center">
+    <div className="text-base-400 text-sm">Loading...</div>
+  </div>;
+}
 
 function ProtectedRoute({ children }) {
   const { token, loading } = useAuthStore();
@@ -36,21 +67,25 @@ export default function App() {
   }, [checkAuth]);
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
-        <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
-        <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-          <Route index element={<Dashboard />} />
-          <Route path="emails" element={<ColdEmails />} />
-          <Route path="resumes" element={<Resumes />} />
-          <Route path="applications" element={<Applications />} />
-          <Route path="quick-apply" element={<QuickApply />} />
-          <Route path="prep" element={<InterviewPrep />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+            <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
+            <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+              <Route index element={<Dashboard />} />
+              <Route path="emails" element={<ColdEmails />} />
+              <Route path="resumes" element={<Resumes />} />
+              <Route path="applications" element={<Applications />} />
+              <Route path="quick-apply" element={<QuickApply />} />
+              <Route path="prep" element={<InterviewPrep />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Route>
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }

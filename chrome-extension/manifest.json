@@ -5,14 +5,30 @@
   "description": "Auto-detect job postings and track applications in LinkedOut",
   "permissions": ["storage", "activeTab"],
   "host_permissions": [
-    "<all_urls>"
+    "*://*.linkedin.com/*",
+    "*://*.indeed.com/*",
+    "*://*.greenhouse.io/*",
+    "*://*.lever.co/*",
+    "*://*.glassdoor.com/*",
+    "*://*.myworkdayjobs.com/*",
+    "*://*.workday.com/*",
+    "*://*.jobvite.com/*"
   ],
   "background": {
     "service_worker": "background/service-worker.js"
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": [
+        "*://*.linkedin.com/jobs/*",
+        "*://*.indeed.com/*",
+        "*://*.greenhouse.io/*",
+        "*://*.lever.co/*",
+        "*://*.glassdoor.com/*",
+        "*://*.myworkdayjobs.com/*",
+        "*://*.workday.com/*/job/*",
+        "*://*.jobvite.com/*"
+      ],
       "js": [
         "lib/constants.js",
         "lib/api.js",

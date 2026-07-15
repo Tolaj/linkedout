@@ -13,42 +13,59 @@ window.LinkedOut = window.LinkedOut || {};
 
   function cacheFields(fields) {
     try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify(fields));
-      localStorage.setItem(CACHE_URL_KEY, window.location.href);
+      chrome.storage.local.set({
+        [CACHE_KEY]: JSON.stringify(fields),
+        [CACHE_URL_KEY]: window.location.href,
+      });
     } catch (e) {}
   }
 
   function loadCachedFields() {
-    try {
-      var url = localStorage.getItem(CACHE_URL_KEY);
-      if (!url) return [];
-      var cached = new URL(url);
-      var current = new URL(window.location.href);
-      if (cached.origin === current.origin && cached.pathname === current.pathname) {
-        return JSON.parse(localStorage.getItem(CACHE_KEY) || "[]");
-      }
-    } catch (e) {}
-    return [];
+    return new Promise(function (resolve) {
+      try {
+        chrome.storage.local.get([CACHE_KEY, CACHE_URL_KEY], function (data) {
+          try {
+            var url = data[CACHE_URL_KEY];
+            if (!url) return resolve([]);
+            var cached = new URL(url);
+            var current = new URL(window.location.href);
+            if (cached.origin === current.origin && cached.pathname === current.pathname) {
+              return resolve(JSON.parse(data[CACHE_KEY] || "[]"));
+            }
+          } catch (e) {}
+          resolve([]);
+        });
+      } catch (e) { resolve([]); }
+    });
   }
 
   function clearCache() {
-    try { localStorage.removeItem(CACHE_KEY); localStorage.removeItem(CACHE_URL_KEY); } catch (e) {}
+    try { chrome.storage.local.remove([CACHE_KEY, CACHE_URL_KEY]); } catch (e) {}
   }
 
   function loadDrafts() {
-    try { return JSON.parse(localStorage.getItem(DRAFTS_KEY) || "{}"); } catch (e) { return {}; }
+    return new Promise(function (resolve) {
+      try {
+        chrome.storage.local.get(DRAFTS_KEY, function (data) {
+          try { resolve(JSON.parse(data[DRAFTS_KEY] || "{}")); }
+          catch (e) { resolve({}); }
+        });
+      } catch (e) { resolve({}); }
+    });
   }
 
   function saveDraft(key, data) {
-    var drafts = loadDrafts();
-    drafts[key] = data;
-    try { localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts)); } catch (e) {}
+    loadDrafts().then(function (drafts) {
+      drafts[key] = data;
+      try { chrome.storage.local.set({ [DRAFTS_KEY]: JSON.stringify(drafts) }); } catch (e) {}
+    });
   }
 
   function removeDraft(key) {
-    var drafts = loadDrafts();
-    delete drafts[key];
-    try { localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts)); } catch (e) {}
+    loadDrafts().then(function (drafts) {
+      delete drafts[key];
+      try { chrome.storage.local.set({ [DRAFTS_KEY]: JSON.stringify(drafts) }); } catch (e) {}
+    });
   }
 
   function draftKey() {
@@ -58,8 +75,8 @@ window.LinkedOut = window.LinkedOut || {};
     } catch (e) { return window.location.href; }
   }
 
-  function getTodayDrafts(trackedApps) {
-    var drafts = loadDrafts();
+  async function getTodayDrafts(trackedApps) {
+    var drafts = await loadDrafts();
     var today = new Date().toISOString().slice(0, 10);
     var trackedLinks = new Set();
     if (trackedApps) {
@@ -543,7 +560,7 @@ window.LinkedOut = window.LinkedOut || {};
   }, true);
 
   // ─── Main Panel ────────────────────────────────────────────────────
-  function createPanel(data) {
+  async function createPanel(data) {
     if (data.location && /^(location|locations|remote|n\/a)$/i.test(data.location.trim())) {
       data.location = "";
     }
@@ -557,7 +574,7 @@ window.LinkedOut = window.LinkedOut || {};
       capturedFields = scanned;
       cacheFields(scanned);
     } else {
-      capturedFields = loadCachedFields();
+      capturedFields = await loadCachedFields();
     }
 
     panelHost = document.createElement("div");
@@ -713,7 +730,7 @@ window.LinkedOut = window.LinkedOut || {};
       // Load today's apps + drafts
       var today = new Date().toISOString().slice(0, 10);
       var todayApps = allApps.filter(function (a) { return a.dateApplied === today; });
-      var todayDrafts = getTodayDrafts(allApps);
+      var todayDrafts = await getTodayDrafts(allApps);
       var container = sr.getElementById("lo-tab-today");
       if (container) {
         container.innerHTML = buildTodayCards(todayApps, existing ? existing.id : null, todayDrafts);
@@ -867,7 +884,7 @@ window.LinkedOut = window.LinkedOut || {};
         var today = new Date().toISOString().slice(0, 10);
         apps = allApps.filter(function (a) { return a.dateApplied === today; });
       }
-      var todayDrafts = getTodayDrafts(allApps || []);
+      var todayDrafts = await getTodayDrafts(allApps || []);
       container.innerHTML = buildTodayCards(apps, currentId, todayDrafts);
       bindTodayCards(sr, apps, todayDrafts);
     } catch (e) {

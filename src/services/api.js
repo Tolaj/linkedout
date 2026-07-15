@@ -1,4 +1,5 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+const REQUEST_TIMEOUT = 30000;
 
 function getToken() {
   return localStorage.getItem("linkedout_token");
@@ -9,18 +10,32 @@ async function request(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...options.headers };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
-  if (!res.ok) {
-    if (res.status === 401) {
-      localStorage.removeItem("linkedout_token");
-      localStorage.removeItem("linkedout_user");
-      window.location.href = "/login";
-      throw new Error("Session expired. Please log in again.");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+
+  try {
+    const res = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        localStorage.removeItem("linkedout_token");
+        localStorage.removeItem("linkedout_user");
+        window.location.href = "/login";
+        throw new Error("Session expired. Please log in again.");
+      }
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || res.statusText);
     }
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || res.statusText);
+    return res.json();
+  } catch (e) {
+    if (e.name === "AbortError") throw new Error("Request timed out");
+    throw e;
+  } finally {
+    clearTimeout(timeout);
   }
-  return res.json();
 }
 
 export async function healthCheck() {

@@ -131,7 +131,8 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   openDashboard.addEventListener("click", async function () {
     var data = await chrome.storage.local.get("linkedout_dashboard_url");
-    var url = data.linkedout_dashboard_url || "http://localhost:5173";
+    var url = data.linkedout_dashboard_url;
+    if (!url) { alert("Set a Dashboard URL first (tap title 5x for settings)."); return; }
     chrome.tabs.create({ url: url });
   });
 

@@ -5,7 +5,7 @@ LinkedOut.API = {
     const data = await chrome.storage.local.get(["linkedout_token", "linkedout_api_url"]);
     return {
       token: data.linkedout_token || null,
-      apiUrl: data.linkedout_api_url || "http://localhost:4000/api",
+      apiUrl: data.linkedout_api_url || "",
     };
   },
 
