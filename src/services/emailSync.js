@@ -1,4 +1,4 @@
-import { isGmailConnected, restoreGmail, searchInboxEmails, parseGmailMessage, getUserEmail } from "./gmail";
+import { isGmailConnected, restoreGmail, searchInboxEmails, parseGmailMessage, getUserEmail, getEmailBody } from "./gmail";
 import useEmailStore from "../stores/useEmailStore";
 import useAppStore from "../stores/useAppStore";
 import useProcessedEmailStore from "../stores/useProcessedEmailStore";
@@ -74,7 +74,15 @@ async function ensureAppDomain(app, senderEmail) {
   await useAppStore.getState().updateApp(app.id, { ...app, domain: updated });
 }
 
+async function fetchBody(gmailId) {
+  try {
+    const data = await getEmailBody(gmailId);
+    return data?.html || data?.text || "";
+  } catch { return ""; }
+}
+
 async function trackEmail(addEmail, parsed, app) {
+  const body = await fetchBody(parsed.gmailId);
   await addEmail({
     gmailId: parsed.gmailId,
     threadId: parsed.threadId,
@@ -86,12 +94,13 @@ async function trackEmail(addEmail, parsed, app) {
     status: "received",
     sentAt: parsed.date,
     snippet: parsed.snippet,
+    body,
   });
 }
 
 export async function clearSkippedCache() {
   await useProcessedEmailStore.getState().clearSkipped();
-  console.log("[EmailSync] Cleared skipped email cache");
+  // console.log("[EmailSync] Cleared skipped email cache");
 }
 
 async function applyDecision(decision, parsed, addEmail, result) {
@@ -170,7 +179,7 @@ export async function syncInboundEmails(onProgress) {
   if (syncing) return { added: 0, created: 0, updated: 0, linked: 0 };
   if (!isGmailConnected()) await restoreGmail();
   if (!isGmailConnected()) {
-    console.warn("[EmailSync] Gmail not connected — skipping sync");
+    // console.warn("[EmailSync] Gmail not connected — skipping sync");
     return { added: 0, created: 0, updated: 0, linked: 0 };
   }
   syncing = true;
@@ -185,17 +194,17 @@ export async function syncInboundEmails(onProgress) {
     const processedIds = peStore.getProcessedIds();
     const lastProcessedDate = peStore.getLastProcessedDate();
 
-    console.log("[EmailSync] Starting sync — apps:", apps.length, "llmActive:", llmActive, "processed:", processedIds.size, "lastDate:", lastProcessedDate);
+    // console.log("[EmailSync] Starting sync — apps:", apps.length, "llmActive:", llmActive, "processed:", processedIds.size, "lastDate:", lastProcessedDate);
 
     const query = buildSyncQuery(llmActive, apps, lastProcessedDate);
     if (!query) {
-      console.warn("[EmailSync] No domains configured and LLM disabled — nothing to sync");
+      // console.warn("[EmailSync] No domains configured and LLM disabled — nothing to sync");
       return result;
     }
-    console.log("[EmailSync] Query:", query);
+    // console.log("[EmailSync] Query:", query);
 
     const messages = await searchInboxEmails(query);
-    console.log("[EmailSync] Fetched", messages.length, "messages from Gmail");
+    // console.log("[EmailSync] Fetched", messages.length, "messages from Gmail");
     if (messages.length === 0) return result;
 
     const existing = useEmailStore.getState().emails;
@@ -222,7 +231,7 @@ export async function syncInboundEmails(onProgress) {
         unmatched.push(parsed);
       }
     }
-    console.log("[EmailSync] Pass 1 — rule-matched:", ruleMatched.length, "unmatched:", unmatched.length);
+    // console.log("[EmailSync] Pass 1 — rule-matched:", ruleMatched.length, "unmatched:", unmatched.length);
 
     // Track rule-matched emails immediately
     for (const { parsed, app } of ruleMatched) {
@@ -241,7 +250,7 @@ export async function syncInboundEmails(onProgress) {
       .filter((p) => isSkipDomain(p.from))
       .map((p) => ({ gmailId: p.gmailId, emailDate: p.date }));
     if (preFilterSkipped.length > 0) await markProcessedBulk(preFilterSkipped, "skipped");
-    console.log("[EmailSync] After pre-filter:", candidates.length, "candidates (skipped", preFilterSkipped.length, "spam domains)");
+    // console.log("[EmailSync] After pre-filter:", candidates.length, "candidates (skipped", preFilterSkipped.length, "spam domains)");
 
     const totalLlmWork = (ruleMatched.length > 0 ? 1 : 0) + candidates.length;
     if (totalLlmWork === 0) return result;
@@ -255,7 +264,7 @@ export async function syncInboundEmails(onProgress) {
           app: { id: app.id, company: app.company },
         }));
         const verification = await batchVerifyMatches(verifyPayload, apps);
-        console.log("[EmailSync] Verification result:", verification);
+        // console.log("[EmailSync] Verification result:", verification);
 
         if (verification?.results) {
           for (const v of verification.results) {
@@ -266,16 +275,16 @@ export async function syncInboundEmails(onProgress) {
             if (v.verified === false && v.correctedAppId) {
               const correctApp = apps.find((a) => a.id === v.correctedAppId);
               if (correctApp) {
-                console.log("[EmailSync] Verify corrected:", parsed.from, "→", correctApp.company, "(was", app.company, ")");
+                // console.log("[EmailSync] Verify corrected:", parsed.from, "→", correctApp.company, "(was", app.company, ")");
                 await ensureAppDomain(correctApp, parsed.from);
               }
             } else if (v.verified === false && v.correctedAppId === null) {
-              console.log("[EmailSync] Verify rejected:", parsed.from, "— not a job email");
+              // console.log("[EmailSync] Verify rejected:", parsed.from, "— not a job email");
             }
           }
         }
       } catch (e) {
-        console.error("[EmailSync] Verification batch failed:", e.message);
+        // console.error("[EmailSync] Verification batch failed:", e.message);
       }
     }
 
@@ -286,7 +295,7 @@ export async function syncInboundEmails(onProgress) {
       for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
         batches.push(candidates.slice(i, i + BATCH_SIZE));
       }
-      console.log("[EmailSync] Processing", candidates.length, "unmatched in", batches.length, "batch(es) of ~" + BATCH_SIZE);
+      // console.log("[EmailSync] Processing", candidates.length, "unmatched in", batches.length, "batch(es) of ~" + BATCH_SIZE);
 
       for (let b = 0; b < batches.length; b++) {
         const batch = batches[b];
@@ -304,7 +313,7 @@ export async function syncInboundEmails(onProgress) {
             snippet: p.snippet,
           }));
           const response = await batchAnalyzeEmails(emailPayload, currentApps);
-          console.log("[EmailSync] Batch", b + 1, "response:", response);
+          // console.log("[EmailSync] Batch", b + 1, "response:", response);
 
           if (response?.results) {
             for (const decision of response.results) {
@@ -324,7 +333,7 @@ export async function syncInboundEmails(onProgress) {
           }
         } catch (e) {
           const isRateLimit = e.message?.includes("rate limit");
-          console.error("[EmailSync] Batch", b + 1, "failed:", isRateLimit ? "(rate limited, will retry next sync)" : e.message);
+          // console.error("[EmailSync] Batch", b + 1, "failed:", isRateLimit ? "(rate limited, will retry next sync)" : e.message);
           if (!isRateLimit) {
             await markProcessedBulk(batch.map((p) => ({ gmailId: p.gmailId, emailDate: p.date })), "skipped");
           }
@@ -332,7 +341,7 @@ export async function syncInboundEmails(onProgress) {
       }
     }
   } catch (e) {
-    console.error("Email sync error:", e);
+    // console.error("Email sync error:", e);
   } finally {
     syncing = false;
   }

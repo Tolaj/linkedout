@@ -63,7 +63,7 @@ async function callLlmJson(config, messages, retries = 3) {
     if (res.status === 429) {
       const retryAfter = res.headers.get("retry-after");
       const wait = retryAfter ? Math.min(parseInt(retryAfter, 10) * 1000, 65000) : (2 ** attempt) * 15000;
-      console.log(`[LLM] Rate limited, waiting ${wait}ms (attempt ${attempt + 1}/${retries})`);
+      // console.log(`[LLM] Rate limited, waiting ${wait}ms (attempt ${attempt + 1}/${retries})`);
       await new Promise((r) => setTimeout(r, wait));
       continue;
     }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Upload, FileText, Trash2, Edit3, ExternalLink, ChevronDown, ChevronRight, Plus, Send, ArrowUpRight, ArrowDownLeft, Users, RefreshCw } from "lucide-react";
+import { Upload, FileText, Trash2, Edit3, ExternalLink, ChevronDown, ChevronRight, Plus, Send, ArrowUpRight, ArrowDownLeft, Users, RefreshCw, Eye, X } from "lucide-react";
 import NoWorkspace from "../components/NoWorkspace";
 import useAppStore from "../stores/useAppStore";
 import useEmailStore from "../stores/useEmailStore";
@@ -7,7 +7,7 @@ import useContactStore from "../stores/useContactStore";
 import useNoteStore from "../stores/useNoteStore";
 import { uid, STAGE_COLOR, EMAIL_STATUSES } from "../lib/constants";
 import { isFileSystemSupported, hasRootDirectory, saveFile, createCompanyFolder, listFiles } from "../services/fileSystem";
-import { isGmailConnected, sendEmail, connectGmail } from "../services/gmail";
+import { isGmailConnected, sendEmail, connectGmail, getEmailBody } from "../services/gmail";
 import { syncInboundEmails, clearSkippedCache } from "../services/emailSync";
 import FormModal from "../components/FormModal";
 import { format, parseISO } from "date-fns";
@@ -22,6 +22,73 @@ function emailMatchesTargets(email, domain) {
   );
 }
 
+function AppEmailReadModal({ email, onClose, updateEmail }) {
+  const [body, setBody] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!email) { setLoading(false); return; }
+    if (email.body) {
+      setBody({ html: email.body });
+      setLoading(false);
+      return;
+    }
+    if (!email.gmailId) { setLoading(false); return; }
+    setLoading(true);
+    getEmailBody(email.gmailId).then((data) => {
+      setBody(data);
+      if (data && updateEmail) {
+        const content = data.html || data.text || "";
+        updateEmail(email.id, { body: content });
+      }
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [email?.id]);
+
+  if (!email) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div className="bg-base-800 border border-base-600 rounded-lg w-full max-w-3xl max-h-[85vh] flex flex-col mx-4" onClick={(ev) => ev.stopPropagation()}>
+        <div className="flex items-start justify-between px-5 py-4 border-b border-base-600">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold text-base truncate">{email.subject || "(no subject)"}</h3>
+            <div className="text-xs text-base-400 mt-1">
+              <span>From: {email.recipientEmail}</span>
+              {email.sentAt && <span className="ml-3">{format(parseISO(email.sentAt), "MMM d, yyyy 'at' h:mm a")}</span>}
+            </div>
+          </div>
+          <button onClick={onClose} className="text-base-400 hover:text-base-100 ml-3 mt-0.5">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          {loading ? (
+            <div className="text-center text-base-400 py-8">Loading email...</div>
+          ) : body?.html ? (
+            <iframe
+              srcDoc={body.html}
+              className="w-full border-0 rounded bg-white"
+              style={{ minHeight: "400px" }}
+              sandbox="allow-same-origin"
+              onLoad={(ev) => {
+                const doc = ev.target.contentDocument;
+                if (doc) ev.target.style.height = doc.documentElement.scrollHeight + "px";
+              }}
+            />
+          ) : body?.text ? (
+            <pre className="whitespace-pre-wrap text-sm text-base-200 font-sans">{body.text}</pre>
+          ) : (
+            <div className="text-center text-base-400 py-8">
+              {isGmailConnected() ? "Could not load email body." : "Connect Gmail to read emails."}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Applications() {
   const { apps, loaded, load, deleteApp } = useAppStore();
   const { emails, load: loadEmails, updateEmail, deleteEmail } = useEmailStore();
@@ -32,6 +99,7 @@ export default function Applications() {
   const [expandedId, setExpandedId] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
+  const [readingEmail, setReadingEmail] = useState(null);
   const hasWorkspace = isFileSystemSupported() && hasRootDirectory();
   const folderName = useSettingsStore((s) => s.folderName);
 
@@ -101,6 +169,9 @@ export default function Applications() {
 
   return (
     <div className="p-6">
+      {readingEmail && (
+        <AppEmailReadModal email={readingEmail} onClose={() => setReadingEmail(null)} updateEmail={updateEmail} />
+      )}
       <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
         <div>
           <h1 className="text-xl font-semibold font-mono mb-1">applications</h1>
@@ -176,6 +247,7 @@ export default function Applications() {
                     updateEmail={updateEmail}
                     deleteEmail={deleteEmail}
                     addEmail={useEmailStore.getState().addEmail}
+                    onReadEmail={setReadingEmail}
                   />
                 );
               })}
@@ -191,7 +263,7 @@ export default function Applications() {
   );
 }
 
-function AppRow({ app, color, domainEmails, isExpanded, onToggle, onEdit, onDelete, updateEmail, deleteEmail, addEmail }) {
+function AppRow({ app, color, domainEmails, isExpanded, onToggle, onEdit, onDelete, updateEmail, deleteEmail, addEmail, onReadEmail }) {
   const appNote = useNoteStore((s) => s.getAppNote(app.id));
   const addNote = useNoteStore((s) => s.addNote);
   const updateNoteStore = useNoteStore((s) => s.updateNote);
@@ -361,7 +433,7 @@ function AppRow({ app, color, domainEmails, isExpanded, onToggle, onEdit, onDele
                       </thead>
                       <tbody className="divide-y divide-base-600">
                         {domainEmails.sort((a, b) => (b.sentAt || "").localeCompare(a.sentAt || "")).map((e) => (
-                          <tr key={e.id} className="bg-base-900 hover:bg-base-700">
+                          <tr key={e.id} className="bg-base-900 hover:bg-base-700 cursor-pointer" onClick={() => e.gmailId && onReadEmail(e)}>
                             <td className="px-3 py-2">
                               {e.direction === "inbound" ? (
                                 <ArrowDownLeft className="w-3.5 h-3.5 text-[#2563EB]" title="Incoming" />
@@ -386,15 +458,22 @@ function AppRow({ app, color, domainEmails, isExpanded, onToggle, onEdit, onDele
                               {e.direction === "inbound" ? (
                                 <span className="text-xs text-[#2563EB]">received</span>
                               ) : (
-                                <select value={e.status} onChange={(ev) => updateEmail(e.id, { status: ev.target.value })} className="input text-xs py-0 px-1 w-auto">
+                                <select value={e.status} onChange={(ev) => { ev.stopPropagation(); updateEmail(e.id, { status: ev.target.value }); }} onClick={(ev) => ev.stopPropagation()} className="input text-xs py-0 px-1 w-auto">
                                   {EMAIL_STATUSES.filter((s) => s !== "received").map((s) => <option key={s} value={s}>{s}</option>)}
                                 </select>
                               )}
                             </td>
                             <td className="px-3 py-2 text-right">
-                              <button onClick={() => deleteEmail(e.id)} className="text-base-400 hover:text-[#DC2626]">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              <div className="flex items-center justify-end gap-2">
+                                {e.gmailId && (
+                                  <button onClick={(ev) => { ev.stopPropagation(); onReadEmail(e); }} className="text-base-400 hover:text-[#2563EB]" title="Read email">
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                <button onClick={(ev) => { ev.stopPropagation(); deleteEmail(e.id); }} className="text-base-400 hover:text-[#DC2626]">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}

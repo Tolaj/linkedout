@@ -256,6 +256,55 @@ export async function searchInboxEmails(query, maxResults = 50) {
   return results;
 }
 
+export async function getEmailBody(messageId) {
+  if (!accessToken || !messageId) return null;
+  const res = await gmailFetch(
+    `https://www.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=full`
+  );
+  if (!res.ok) return null;
+  const msg = await res.json();
+
+  function decodeBase64(str) {
+    try { return decodeURIComponent(escape(atob(str.replace(/-/g, "+").replace(/_/g, "/")))); }
+    catch { return atob(str.replace(/-/g, "+").replace(/_/g, "/")); }
+  }
+
+  function extractBody(payload) {
+    if (payload.mimeType === "text/html" && payload.body?.data) {
+      return { html: decodeBase64(payload.body.data) };
+    }
+    if (payload.mimeType === "text/plain" && payload.body?.data) {
+      return { text: decodeBase64(payload.body.data) };
+    }
+    if (payload.parts) {
+      let html = null, text = null;
+      for (const part of payload.parts) {
+        const result = extractBody(part);
+        if (result?.html) html = result.html;
+        if (result?.text && !text) text = result.text;
+      }
+      if (html) return { html };
+      if (text) return { text };
+    }
+    return null;
+  }
+
+  const body = extractBody(msg.payload);
+  const from = extractHeader(msg, "From");
+  const subject = extractHeader(msg, "Subject");
+  const date = extractHeader(msg, "Date");
+  const to = extractHeader(msg, "To");
+
+  return {
+    from,
+    to,
+    subject,
+    date: date ? new Date(date).toISOString() : null,
+    html: body?.html || null,
+    text: body?.text || null,
+  };
+}
+
 function extractHeader(msg, name) {
   const h = msg.payload?.headers?.find((h) => h.name.toLowerCase() === name.toLowerCase());
   return h?.value || "";
