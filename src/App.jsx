@@ -4,6 +4,8 @@ import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Landing from "./pages/Landing";
+import Privacy from "./pages/Privacy";
+import Support from "./pages/Support";
 import useAuthStore from "./stores/useAuthStore";
 import { restoreRootDirectory } from "./services/fileSystem";
 
@@ -73,6 +75,8 @@ export default function App() {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<GuestRoute><Landing /></GuestRoute>} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/support" element={<Support />} />
             <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
             <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
