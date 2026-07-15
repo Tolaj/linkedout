@@ -6,7 +6,7 @@ import useEmailStore from "../stores/useEmailStore";
 import useAppStore from "../stores/useAppStore";
 import useContactStore from "../stores/useContactStore";
 import { isGmailConnected, sendEmail, connectGmail } from "../services/gmail";
-import { syncInboundEmails } from "../services/emailSync";
+import { syncInboundEmails, clearSkippedCache } from "../services/emailSync";
 import { EMAIL_STATUSES, uid } from "../lib/constants";
 import { format, isPast, parseISO } from "date-fns";
 import { isFileSystemSupported, hasRootDirectory } from "../services/fileSystem";
@@ -40,12 +40,18 @@ export default function ColdEmails() {
     if (!isGmailConnected()) {
       try { await connectGmail(); } catch { return; }
     }
+    // One-time reset: clear emails that were incorrectly skipped due to rate limiting
+    if (!localStorage.getItem("linkedout_skipped_v2")) {
+      await clearSkippedCache();
+      localStorage.setItem("linkedout_skipped_v2", "1");
+    }
     setSyncing(true);
     setSyncMsg("");
     const r = await syncInboundEmails((msg) => setSyncMsg(msg));
     const parts = [];
     if (r.added) parts.push(`${r.added} email${r.added > 1 ? "s" : ""}`);
     if (r.created) parts.push(`${r.created} app${r.created > 1 ? "s" : ""} created`);
+    if (r.linked) parts.push(`${r.linked} linked`);
     if (r.updated) parts.push(`${r.updated} stage${r.updated > 1 ? "s" : ""} updated`);
     setSyncMsg(parts.length ? parts.join(", ") : "No new emails");
     setSyncing(false);
@@ -118,15 +124,7 @@ export default function ColdEmails() {
         ))}
       </div>
 
-      {tab === "tracker" && <EmailTracker emails={emails.filter((e) => {
-        if (e.direction !== "inbound") return true;
-        if (!e.appId) return false;
-        const linkedApp = apps.find((a) => a.id === e.appId);
-        if (!linkedApp?.domain) return false;
-        const sender = (e.recipientEmail || "").toLowerCase();
-        return linkedApp.domain.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean)
-          .some((t) => t.includes("@") ? sender === t : sender.endsWith("@" + t));
-      })} updateEmail={updateEmail} deleteEmail={deleteEmail} apps={apps} />}
+      {tab === "tracker" && <EmailTracker emails={emails} updateEmail={updateEmail} deleteEmail={deleteEmail} apps={apps} />}
       {tab === "templates" && (
         <TemplateList
           templates={templates}

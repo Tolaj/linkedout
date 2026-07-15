@@ -9,90 +9,6 @@ const PROVIDERS = {
   },
 };
 
-const TRIAGE_TOOLS = [
-  {
-    type: "function",
-    function: {
-      name: "application_email",
-      description: "This email is related to a job application — confirmation, status update, interview invite, rejection, or offer.",
-      parameters: {
-        type: "object",
-        properties: {
-          reason: { type: "string", description: "Brief reason why this is application-related" },
-        },
-        required: ["reason"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "not_application",
-      description: "This email is NOT related to any job application — newsletter, marketing, OTP, social media, personal, shopping, etc.",
-      parameters: {
-        type: "object",
-        properties: {
-          reason: { type: "string", description: "Brief reason" },
-        },
-        required: ["reason"],
-      },
-    },
-  },
-];
-
-const ANALYZE_TOOLS = [
-  {
-    type: "function",
-    function: {
-      name: "create_application",
-      description: "Create a new job application entry. Use ONLY when no existing application matches this company+role.",
-      parameters: {
-        type: "object",
-        properties: {
-          company: { type: "string", description: "Company name (clean, no Inc/LLC/Corp suffix)" },
-          role: { type: "string", description: "Job title/role applied for" },
-          location: { type: "string", description: "Job location if mentioned, empty string if not" },
-          domain: { type: "string", description: "Sender email domain (e.g. 'google.com' from noreply@google.com)" },
-        },
-        required: ["company", "role", "domain"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "not_application",
-      description: "This email is NOT a direct application confirmation or status update — it is a newsletter, job alert, marketing, or irrelevant email.",
-      parameters: {
-        type: "object",
-        properties: {
-          reason: { type: "string", description: "Brief reason" },
-        },
-        required: ["reason"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "update_application_stage",
-      description: "Update the stage of an existing application based on email content.",
-      parameters: {
-        type: "object",
-        properties: {
-          appId: { type: "string", description: "ID of the existing application to update" },
-          newStage: {
-            type: "string",
-            enum: ["Screening", "Interviewing", "Offer", "Rejected"],
-          },
-          reason: { type: "string", description: "Brief reason for the stage change" },
-        },
-        required: ["appId", "newStage"],
-      },
-    },
-  },
-];
-
 function getConfig() {
   const provider = localStorage.getItem("linkedout_llm_provider") || "cerebras";
   const apiKey = localStorage.getItem("linkedout_llm_key");
@@ -128,56 +44,45 @@ export function getLlmUsage() {
   catch { return null; }
 }
 
-async function callLlm(config, messages, tools) {
-  const res = await fetch(config.url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: config.model,
-      messages,
-      tools,
-      tool_choice: "required",
-      temperature: 0,
-    }),
-  });
-  captureRateLimits(res);
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error?.message || `LLM API error: ${res.status}`);
+async function callLlmJson(config, messages, retries = 3) {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    const res = await fetch(config.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages,
+        temperature: 0,
+        response_format: { type: "json_object" },
+      }),
+    });
+    captureRateLimits(res);
+    if (res.status === 429) {
+      const retryAfter = res.headers.get("retry-after");
+      const wait = retryAfter ? Math.min(parseInt(retryAfter, 10) * 1000, 65000) : (2 ** attempt) * 15000;
+      console.log(`[LLM] Rate limited, waiting ${wait}ms (attempt ${attempt + 1}/${retries})`);
+      await new Promise((r) => setTimeout(r, wait));
+      continue;
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `LLM API error: ${res.status}`);
+    }
+    const data = await res.json();
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) return null;
+    try { return JSON.parse(content); }
+    catch { return null; }
   }
-  const data = await res.json();
-  const msg = data.choices?.[0]?.message;
-  if (!msg?.tool_calls?.length) return null;
-  const call = msg.tool_calls[0];
-  try {
-    return { action: call.function.name, ...JSON.parse(call.function.arguments) };
-  } catch { return null; }
+  throw new Error("LLM rate limit exceeded after retries");
 }
 
-// Tier 1: Quick triage — just sender + subject, minimal tokens
-export async function triageEmail(from, subject) {
-  const config = getConfig();
-  if (!config) return null;
-  return callLlm(config, [
-    { role: "system", content: `You decide if an email is a DIRECT response to a specific job the user applied to — like an application confirmation, interview invite, screening update, offer, or rejection for a SPECIFIC role at a SPECIFIC company.
-
-Mark as NOT application:
-- Job board newsletters, resume tips, career advice, marketing emails
-- Mass emails from job platforms (LinkedIn, Indeed, Glassdoor, Ladders, ZipRecruiter, etc.)
-- Emails about "new jobs matching your profile" or job alerts
-- Promotional emails even if job-related
-
-Only mark as application_email if the subject clearly references a specific company AND role the user applied to.
-You MUST call exactly one tool.` },
-    { role: "user", content: `From: ${from}\nSubject: ${subject}` },
-  ], TRIAGE_TOOLS);
-}
-
-// Tier 2: Full analysis — only called if triage says yes
-export async function analyzeEmail(emailData, existingApps) {
+// Batch analyze: process multiple emails in one LLM call
+// Returns array of decisions: { emailIndex, action, appId?, company?, role?, domain?, newStage?, reason? }
+export async function batchAnalyzeEmails(emails, existingApps) {
   const config = getConfig();
   if (!config) return null;
 
@@ -185,25 +90,61 @@ export async function analyzeEmail(emailData, existingApps) {
     `- ID: ${a.id} | Company: ${a.company} | Role: ${a.role} | Stage: ${a.status} | Domain: ${a.domain || "none"}`
   ).join("\n");
 
-  return callLlm(config, [
-    { role: "system", content: `You analyze job application emails and decide what action to take.
+  const emailList = emails.map((e, i) =>
+    `[${i}] From: ${e.from} | Subject: ${e.subject} | Snippet: ${e.snippet || ""}`
+  ).join("\n");
+
+  return callLlmJson(config, [
+    { role: "system", content: `You analyze job application emails in batch. Return a JSON object with a "results" array.
 
 EXISTING APPLICATIONS:
 ${appList || "(none)"}
 
-RULES:
-1. REJECT (call not_application) if this is a newsletter, job alert, marketing, resume tip, career advice, or mass email from a job platform — even if job-related
-2. If this is a NEW application confirmation for a company+role not in the list → use create_application
-3. If this matches an EXISTING application with a status update → use update_application_stage
-   - Interview scheduled → Interviewing
-   - Under review/screening → Screening
-   - Offer/congratulations → Offer
-   - Rejection/not moving forward → Rejected
-4. NEVER create a duplicate — match by company name (ignore Inc/LLC/Corp)
-5. Extract clean company name and exact role title
-6. If unsure whether it's a real application vs marketing, default to NOT creating an application
+For EACH email, decide one action:
+- "not_application" — newsletter, job alert, marketing, OTP, social media, shopping, personal, etc.
+- "create_application" — NEW application confirmation for a company+role NOT in the list. Include company, role, location, domain.
+- "link_to_application" — matches an EXISTING app, stage unchanged. Include appId.
+- "update_application_stage" — matches an EXISTING app with a stage change. Include appId, newStage (Screening|Interviewing|Offer|Rejected).
 
-You MUST call exactly one tool.` },
-    { role: "user", content: `From: ${emailData.from}\nSubject: ${emailData.subject}\nSnippet: ${emailData.snippet}` },
-  ], ANALYZE_TOOLS);
+RULES:
+1. REJECT if newsletter, job alert, marketing, resume tip, career advice, mass email from job platform
+2. NEVER create duplicates — match by company name (ignore Inc/LLC/Corp)
+3. Sender domain may differ from company (e.g. notify@dayforce.com for West Shore Home, notification@jobvite.com for Mini-Circuits) — match by company name in subject/snippet, not sender domain
+4. If unsure, default to "not_application"
+
+Return JSON: { "results": [{ "emailIndex": 0, "action": "...", "appId": "...", "company": "...", "role": "...", "location": "...", "domain": "...", "newStage": "...", "reason": "..." }, ...] }
+Every email MUST have exactly one entry in results.` },
+    { role: "user", content: emailList },
+  ]);
+}
+
+// Batch verify: cross-check rule-based matches with LLM
+// Returns array: { emailIndex, verified, correctedAppId? }
+export async function batchVerifyMatches(matches, existingApps) {
+  const config = getConfig();
+  if (!config) return null;
+
+  const appList = existingApps.map((a) =>
+    `- ID: ${a.id} | Company: ${a.company} | Role: ${a.role} | Stage: ${a.status} | Domain: ${a.domain || "none"}`
+  ).join("\n");
+
+  const matchList = matches.map((m, i) =>
+    `[${i}] From: ${m.email.from} | Subject: ${m.email.subject} | Snippet: ${m.email.snippet || ""} → Pre-matched to: ${m.app.company} (ID: ${m.app.id})`
+  ).join("\n");
+
+  return callLlmJson(config, [
+    { role: "system", content: `You verify rule-based email-to-job-application matches. Return a JSON object with a "results" array.
+
+ALL APPLICATIONS:
+${appList || "(none)"}
+
+Each email below was matched to a job application by domain. Verify if the match is correct.
+- If correct: { "emailIndex": N, "verified": true }
+- If wrong match (should be different app): { "emailIndex": N, "verified": false, "correctedAppId": "correct_id", "reason": "..." }
+- If not a job email at all: { "emailIndex": N, "verified": false, "correctedAppId": null, "reason": "not a job application email" }
+
+Return JSON: { "results": [...] }
+Every email MUST have exactly one entry.` },
+    { role: "user", content: matchList },
+  ]);
 }

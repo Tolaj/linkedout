@@ -1,9 +1,33 @@
 import { isGmailConnected, restoreGmail, searchInboxEmails, parseGmailMessage, getUserEmail } from "./gmail";
 import useEmailStore from "../stores/useEmailStore";
 import useAppStore from "../stores/useAppStore";
-import { triageEmail, analyzeEmail } from "./llm";
+import useProcessedEmailStore from "../stores/useProcessedEmailStore";
+import { batchAnalyzeEmails, batchVerifyMatches } from "./llm";
 
 let syncing = false;
+
+const SKIP_DOMAINS = new Set([
+  "amazon.com", "ebay.com", "target.com", "walmart.com", "bestbuy.com",
+  "uber.com", "ubereats.com", "grubhub.com",
+  "netflix.com", "spotify.com", "apple.com", "google.com",
+  "facebook.com", "instagram.com", "twitter.com", "x.com", "tiktok.com",
+  "reddit.com", "quora.com", "medium.com", "substack.com",
+  "github.com", "gitlab.com", "bitbucket.org",
+  "paypal.com", "venmo.com", "cashapp.com", "zelle.com",
+  "chase.com", "bankofamerica.com", "wellsfargo.com", "capitalone.com",
+  "dunkindonuts.com", "starbucks.com", "chipotle.com", "panera.com", "panerabread.com",
+  "southwest.com", "united.com", "delta.com", "aa.com",
+  "nytimes.com", "washingtonpost.com", "cnn.com",
+  "discord.com", "slack.com", "zoom.us",
+  "linkedin.com", "indeed.com", "glassdoor.com", "ziprecruiter.com",
+  "hackerrank.com", "leetcode.com",
+  "dropbox.com", "box.com", "notion.so",
+]);
+
+function isSkipDomain(senderEmail) {
+  const domain = senderEmail.split("@")[1]?.toLowerCase() || "";
+  return SKIP_DOMAINS.has(domain);
+}
 
 function buildQuery(apps) {
   const emails = new Set();
@@ -41,16 +65,13 @@ function isLlmEnabled() {
   return localStorage.getItem("linkedout_llm_enabled") === "true" && !!localStorage.getItem("linkedout_llm_key");
 }
 
-function getSkippedIds() {
-  try { return new Set(JSON.parse(localStorage.getItem("linkedout_llm_skipped") || "[]")); }
-  catch { return new Set(); }
-}
-
-function markSkipped(gmailId) {
-  const skipped = getSkippedIds();
-  skipped.add(gmailId);
-  const arr = [...skipped].slice(-1000);
-  localStorage.setItem("linkedout_llm_skipped", JSON.stringify(arr));
+async function ensureAppDomain(app, senderEmail) {
+  const senderDomain = senderEmail.split("@")[1] || "";
+  if (!senderDomain) return;
+  const existing = (app.domain || "").split(",").map((t) => t.trim().toLowerCase()).filter(Boolean);
+  if (existing.includes(senderDomain) || existing.includes(senderEmail.toLowerCase())) return;
+  const updated = existing.length > 0 ? existing.join(", ") + ", " + senderDomain : senderDomain;
+  await useAppStore.getState().updateApp(app.id, { ...app, domain: updated });
 }
 
 async function trackEmail(addEmail, parsed, app) {
@@ -68,108 +89,233 @@ async function trackEmail(addEmail, parsed, app) {
   });
 }
 
+export async function clearSkippedCache() {
+  await useProcessedEmailStore.getState().clearSkipped();
+  console.log("[EmailSync] Cleared skipped email cache");
+}
+
+async function applyDecision(decision, parsed, addEmail, result) {
+  const currentApps = useAppStore.getState().apps;
+  const { markProcessed } = useProcessedEmailStore.getState();
+
+  if (decision.action === "create_application") {
+    const senderDomain = parsed.from.split("@")[1] || "";
+    const domain = decision.domain || senderDomain;
+    const newApp = await useAppStore.getState().addApp({
+      company: decision.company,
+      role: decision.role,
+      location: decision.location || "",
+      status: "Applied",
+      dateApplied: parsed.date?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+      source: "Email",
+      domain,
+      referral: "N",
+      resumeVersion: "",
+      link: "",
+      notes: "",
+    });
+    await trackEmail(addEmail, parsed, newApp);
+    await markProcessed(parsed.gmailId, "tracked");
+    result.created++;
+    result.added++;
+  } else if (decision.action === "link_to_application" && decision.appId) {
+    const app = currentApps.find((a) => a.id === decision.appId);
+    if (app) {
+      await ensureAppDomain(app, parsed.from);
+      await trackEmail(addEmail, parsed, app);
+      await markProcessed(parsed.gmailId, "tracked");
+      result.linked++;
+      result.added++;
+    } else {
+      await markProcessed(parsed.gmailId, "skipped");
+    }
+  } else if (decision.action === "update_application_stage" && decision.appId) {
+    const app = currentApps.find((a) => a.id === decision.appId);
+    if (app) {
+      await ensureAppDomain(app, parsed.from);
+      await useAppStore.getState().updateApp(app.id, { ...app, status: decision.newStage });
+      await trackEmail(addEmail, parsed, app);
+      await markProcessed(parsed.gmailId, "tracked");
+      result.updated++;
+      result.added++;
+    } else {
+      await markProcessed(parsed.gmailId, "skipped");
+    }
+  } else {
+    await markProcessed(parsed.gmailId, "skipped");
+  }
+}
+
 export async function syncInboundEmails(onProgress) {
-  if (syncing) return { added: 0, created: 0, updated: 0 };
+  if (syncing) return { added: 0, created: 0, updated: 0, linked: 0 };
   if (!isGmailConnected()) await restoreGmail();
-  if (!isGmailConnected()) return { added: 0, created: 0, updated: 0 };
+  if (!isGmailConnected()) {
+    console.warn("[EmailSync] Gmail not connected — skipping sync");
+    return { added: 0, created: 0, updated: 0, linked: 0 };
+  }
   syncing = true;
-  const result = { added: 0, created: 0, updated: 0 };
+  const result = { added: 0, created: 0, updated: 0, linked: 0 };
   try {
     const apps = useAppStore.getState().apps;
     const myEmail = await getUserEmail();
     const llmActive = isLlmEnabled();
 
-    // Query: if LLM enabled, pull broader inbox; otherwise only tracked domains
+    // Ensure processed emails are loaded from DB
+    const peStore = useProcessedEmailStore.getState();
+    if (!peStore.loaded) await peStore.load();
+    const processedIds = peStore.getProcessedIds();
+    const skippedIds = peStore.getSkippedIds();
+
+    console.log("[EmailSync] Starting sync — apps:", apps.length, "llmActive:", llmActive, "processed:", processedIds.size, "skipped:", skippedIds.size);
+
     let query;
     if (llmActive) {
       query = "in:inbox newer_than:7d";
     } else {
       query = buildQuery(apps);
-      if (!query) return result;
+      if (!query) {
+        console.warn("[EmailSync] No domains configured and LLM disabled — nothing to sync");
+        return result;
+      }
     }
+    console.log("[EmailSync] Query:", query);
 
     const messages = await searchInboxEmails(query);
+    console.log("[EmailSync] Fetched", messages.length, "messages from Gmail");
     if (messages.length === 0) return result;
 
     const existing = useEmailStore.getState().emails;
     const seenGmailIds = new Set(existing.map((e) => e.gmailId).filter(Boolean));
     const seenThreadIds = new Set(existing.map((e) => e.threadId).filter(Boolean));
-    const skippedIds = llmActive ? getSkippedIds() : new Set();
     const addEmail = useEmailStore.getState().addEmail;
+    const { markProcessed, markProcessedBulk } = useProcessedEmailStore.getState();
+    const ruleMatched = [];
     const unmatched = [];
 
-    // Pass 1: System rules — match by domain/email
+    // ── Pass 1: Rule-based domain matching (instant) ──
     for (const msg of messages) {
       const parsed = parseGmailMessage(msg);
       if (seenGmailIds.has(parsed.gmailId)) continue;
       if (seenThreadIds.has(parsed.threadId)) continue;
+      if (processedIds.has(parsed.gmailId)) continue;
       if (myEmail && parsed.from === myEmail.toLowerCase()) continue;
 
       const matchedApp = matchAppForSender(parsed.from, apps);
       if (matchedApp) {
         if (matchedApp.dateApplied && parsed.date && parsed.date.slice(0, 10) < matchedApp.dateApplied.slice(0, 10)) continue;
-        await trackEmail(addEmail, parsed, matchedApp);
-        seenGmailIds.add(parsed.gmailId);
-        seenThreadIds.add(parsed.threadId);
-        result.added++;
-      } else if (llmActive && !skippedIds.has(parsed.gmailId)) {
+        ruleMatched.push({ parsed, app: matchedApp });
+      } else if (llmActive) {
         unmatched.push(parsed);
       }
     }
+    console.log("[EmailSync] Pass 1 — rule-matched:", ruleMatched.length, "unmatched:", unmatched.length);
 
-    // Pass 2: LLM — only unmatched, unskipped emails
-    if (unmatched.length > 0 && llmActive) {
-      onProgress?.(`${unmatched.length} unmatched email${unmatched.length > 1 ? "s" : ""} to check...`);
+    // Track rule-matched emails immediately
+    for (const { parsed, app } of ruleMatched) {
+      await trackEmail(addEmail, parsed, app);
+      await markProcessed(parsed.gmailId, "tracked");
+      seenGmailIds.add(parsed.gmailId);
+      seenThreadIds.add(parsed.threadId);
+      result.added++;
+    }
 
-      for (const parsed of unmatched) {
-        try {
-          // Tier 1: Quick triage — just sender + subject
-          const triage = await triageEmail(parsed.from, parsed.subject);
-          if (!triage || triage.action === "not_application") {
-            markSkipped(parsed.gmailId);
-            continue;
-          }
+    if (!llmActive) return result;
 
-          // Tier 2: Full analysis — only if triage says application-related
-          onProgress?.(`Analyzing: ${parsed.subject?.slice(0, 40)}...`);
-          const currentApps = useAppStore.getState().apps;
-          const decision = await analyzeEmail(parsed, currentApps);
+    // Pre-filter obvious non-job domains
+    const candidates = unmatched.filter((p) => {
+      if (isSkipDomain(p.from)) return false;
+      return true;
+    });
+    // Bulk-mark pre-filtered as skipped
+    const preFilterSkipped = unmatched.filter((p) => isSkipDomain(p.from)).map((p) => p.gmailId);
+    if (preFilterSkipped.length > 0) await markProcessedBulk(preFilterSkipped, "skipped");
+    console.log("[EmailSync] After pre-filter:", candidates.length, "candidates (skipped", preFilterSkipped.length, "spam domains)");
 
-          if (decision?.action === "create_application") {
-            const senderDomain = parsed.from.split("@")[1] || "";
-            const domain = decision.domain || senderDomain;
-            const newApp = await useAppStore.getState().addApp({
-              company: decision.company,
-              role: decision.role,
-              location: decision.location || "",
-              status: "Applied",
-              dateApplied: parsed.date?.slice(0, 10) || new Date().toISOString().slice(0, 10),
-              source: "Email",
-              domain,
-              referral: "N",
-              resumeVersion: "",
-              link: "",
-              notes: "",
-            });
-            await trackEmail(addEmail, parsed, newApp);
-            result.created++;
-            result.added++;
-          } else if (decision?.action === "update_application_stage" && decision.appId) {
-            const app = currentApps.find((a) => a.id === decision.appId);
-            if (app) {
-              await useAppStore.getState().updateApp(app.id, { ...app, status: decision.newStage });
-              await trackEmail(addEmail, parsed, app);
-              result.updated++;
-              result.added++;
-            } else {
-              markSkipped(parsed.gmailId);
+    const totalLlmWork = (ruleMatched.length > 0 ? 1 : 0) + candidates.length;
+    if (totalLlmWork === 0) return result;
+
+    // ── Pass 2: LLM batch verification of rule-based matches (1 request) ──
+    if (ruleMatched.length > 0) {
+      onProgress?.("Verifying matched emails...");
+      try {
+        const verifyPayload = ruleMatched.map(({ parsed, app }) => ({
+          email: { from: parsed.from, subject: parsed.subject, snippet: parsed.snippet },
+          app: { id: app.id, company: app.company },
+        }));
+        const verification = await batchVerifyMatches(verifyPayload, apps);
+        console.log("[EmailSync] Verification result:", verification);
+
+        if (verification?.results) {
+          for (const v of verification.results) {
+            const idx = v.emailIndex;
+            if (idx < 0 || idx >= ruleMatched.length) continue;
+            const { parsed, app } = ruleMatched[idx];
+
+            if (v.verified === false && v.correctedAppId) {
+              const correctApp = apps.find((a) => a.id === v.correctedAppId);
+              if (correctApp) {
+                console.log("[EmailSync] Verify corrected:", parsed.from, "→", correctApp.company, "(was", app.company, ")");
+                await ensureAppDomain(correctApp, parsed.from);
+              }
+            } else if (v.verified === false && v.correctedAppId === null) {
+              console.log("[EmailSync] Verify rejected:", parsed.from, "— not a job email");
             }
+          }
+        }
+      } catch (e) {
+        console.error("[EmailSync] Verification batch failed:", e.message);
+      }
+    }
+
+    // ── Pass 3: LLM batch analysis of unmatched emails ──
+    if (candidates.length > 0) {
+      const BATCH_SIZE = Math.max(4, Math.ceil(candidates.length / 4));
+      const batches = [];
+      for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
+        batches.push(candidates.slice(i, i + BATCH_SIZE));
+      }
+      console.log("[EmailSync] Processing", candidates.length, "unmatched in", batches.length, "batch(es) of ~" + BATCH_SIZE);
+
+      for (let b = 0; b < batches.length; b++) {
+        const batch = batches[b];
+        if (b > 0) {
+          onProgress?.(`Waiting for rate limit... (batch ${b + 1}/${batches.length})`);
+          await new Promise((r) => setTimeout(r, 62000));
+        }
+        onProgress?.(`Analyzing batch ${b + 1}/${batches.length} (${batch.length} emails)...`);
+
+        try {
+          const currentApps = useAppStore.getState().apps;
+          const emailPayload = batch.map((p) => ({
+            from: p.from,
+            subject: p.subject,
+            snippet: p.snippet,
+          }));
+          const response = await batchAnalyzeEmails(emailPayload, currentApps);
+          console.log("[EmailSync] Batch", b + 1, "response:", response);
+
+          if (response?.results) {
+            for (const decision of response.results) {
+              const idx = decision.emailIndex;
+              if (idx < 0 || idx >= batch.length) continue;
+              const parsed = batch[idx];
+              await applyDecision(decision, parsed, addEmail, result);
+            }
+            const handledIndexes = new Set(response.results.map((r) => r.emailIndex));
+            const missedIds = [];
+            for (let i = 0; i < batch.length; i++) {
+              if (!handledIndexes.has(i)) missedIds.push(batch[i].gmailId);
+            }
+            if (missedIds.length > 0) await markProcessedBulk(missedIds, "skipped");
           } else {
-            markSkipped(parsed.gmailId);
+            await markProcessedBulk(batch.map((p) => p.gmailId), "skipped");
           }
         } catch (e) {
-          console.error("LLM failed for:", parsed.subject, e);
-          markSkipped(parsed.gmailId);
+          const isRateLimit = e.message?.includes("rate limit");
+          console.error("[EmailSync] Batch", b + 1, "failed:", isRateLimit ? "(rate limited, will retry next sync)" : e.message);
+          if (!isRateLimit) {
+            await markProcessedBulk(batch.map((p) => p.gmailId), "skipped");
+          }
         }
       }
     }
