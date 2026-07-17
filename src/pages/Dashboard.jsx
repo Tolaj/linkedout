@@ -120,7 +120,7 @@ export default function Dashboard() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search company or role"
-          className="input w-full pl-9"
+          className="input w-full pl-9 "
         />
       </div>
 
@@ -130,39 +130,39 @@ export default function Dashboard() {
           No applications logged yet. Click "Log application" to add your first one.
         </div>
       ) : (
-      <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-320px)] min-h-[400px]">
-        {KANBAN_COLUMNS.map((col) => {
-          const c = STAGE_COLOR[col] || { dot: "bg-[#6B7280]", ring: "border-[#6B7280]", text: "text-[#6B7280]", bg: "bg-[#F9FAFB]" };
-          const cards = byStage[col];
-          return (
-            <div key={col} className="flex-shrink-0 w-[260px] flex flex-col">
-              <div className="flex items-center gap-2 mb-3 px-1">
-                <span className={`w-2 h-2 rounded-full ${c.dot}`} />
-                <span className="text-sm font-medium">{col}</span>
-                <span className="text-xs text-base-400 ml-auto font-mono">{cards.length}</span>
+        <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-320px)] min-h-[400px]">
+          {KANBAN_COLUMNS.map((col) => {
+            const c = STAGE_COLOR[col] || { dot: "bg-[#6B7280]", ring: "border-[#6B7280]", text: "text-[#6B7280]", bg: "bg-[#F9FAFB]" };
+            const cards = byStage[col];
+            return (
+              <div key={col} className="flex-shrink-0 w-[260px] flex flex-col">
+                <div className="flex items-center gap-2 mb-3 px-1">
+                  <span className={`w-2 h-2 rounded-full ${c.dot}`} />
+                  <span className="text-sm font-medium">{col}</span>
+                  <span className="text-xs text-base-400 ml-auto font-mono">{cards.length}</span>
+                </div>
+                <div className="space-y-2 min-h-[40px] flex-1 overflow-y-auto pr-1">
+                  {cards.map((app) => {
+                    const appColor = STAGE_COLOR[app.status] || c;
+                    return (
+                      <AppCard
+                        key={app.id}
+                        app={app}
+                        color={appColor}
+                        onOpen={() => { setEditingApp(app); setModalOpen(true); }}
+                      />
+                    );
+                  })}
+                  {cards.length === 0 && (
+                    <div className="border border-dashed border-base-600 rounded-lg h-16 flex items-center justify-center text-xs text-base-500">
+                      empty
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="space-y-2 min-h-[40px] flex-1 overflow-y-auto pr-1">
-                {cards.map((app) => {
-                  const appColor = STAGE_COLOR[app.status] || c;
-                  return (
-                    <AppCard
-                      key={app.id}
-                      app={app}
-                      color={appColor}
-                      onOpen={() => { setEditingApp(app); setModalOpen(true); }}
-                    />
-                  );
-                })}
-                {cards.length === 0 && (
-                  <div className="border border-dashed border-base-600 rounded-lg h-16 flex items-center justify-center text-xs text-base-500">
-                    empty
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
       )}
 
       {modalOpen && (
