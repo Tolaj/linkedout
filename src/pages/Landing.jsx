@@ -6,6 +6,7 @@ import {
   MousePointerClick,
   BarChart3,
   Zap,
+  Download,
   Shield,
   ArrowRight,
   Globe,
@@ -124,11 +125,13 @@ export default function Landing() {
             Add to Chrome
           </a>
           <Link
-            to="/register"
+            to="/linkedout-extension.zip"
+            download
+            reloadDocument
             className="inline-flex items-center gap-2 border border-base-500 text-base-100 px-6 py-3 rounded-lg font-medium hover:bg-base-700 transition-colors text-sm"
           >
-            Create free account
-            <ArrowRight size={16} />
+            Download Extension (.zip)
+            <Download size={16} />
           </Link>
         </div>
       </section>
