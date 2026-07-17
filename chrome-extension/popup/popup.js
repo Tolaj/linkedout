@@ -15,6 +15,13 @@ document.addEventListener("DOMContentLoaded", async function () {
   var urlMsg = document.getElementById("url-msg");
   var headerTap = document.getElementById("header-tap");
 
+  // SignUp 
+  var signupView = document.getElementById("signup-view");
+  var signupBtn = document.getElementById("signup-btn");
+  var signupError = document.getElementById("signup-error");
+  var goSignup = document.getElementById("go-signup");
+  var goLogin = document.getElementById("go-login");
+
   // Tap title 5 times to reveal dev settings
   var tapCount = 0;
   var tapTimer = null;
@@ -22,7 +29,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     tapCount++;
     clearTimeout(tapTimer);
     tapTimer = setTimeout(function () { tapCount = 0; }, 1500);
-    if (tapCount >= 5) {
+    if (tapCount >= 20) {
       devSection.style.display = devSection.style.display === "none" ? "block" : "none";
       tapCount = 0;
     }
@@ -32,6 +39,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     loginView.style.display = "none";
     userView.style.display = "none";
     loadingView.style.display = "none";
+    signupView.style.display = "none";
     view.style.display = "block";
   }
 
@@ -121,6 +129,40 @@ document.addEventListener("DOMContentLoaded", async function () {
     passwordInput.value = "";
   });
 
+  goSignup.addEventListener("click", function (e) {
+    e.preventDefault();
+    showView(signupView);
+  });
+
+  goLogin.addEventListener("click", function (e) {
+    e.preventDefault();
+    showView(loginView);
+  });
+
+  signupBtn.addEventListener("click", async function () {
+    var name = document.getElementById("signup-name").value.trim();
+    var email = document.getElementById("signup-email").value.trim();
+    var password = document.getElementById("signup-password").value;
+    if (!name || !email || !password) return;
+
+    await saveUrls();
+
+    signupBtn.disabled = true;
+    signupBtn.textContent = "Creating...";
+    signupError.style.display = "none";
+
+    try {
+      var user = await LinkedOut.API.signup(name, email, password);
+      showUserView(user);
+    } catch (e) {
+      signupError.textContent = e.message || "Signup failed";
+      signupError.style.display = "block";
+    } finally {
+      signupBtn.disabled = false;
+      signupBtn.textContent = "Create Account";
+    }
+  });
+
   document.getElementById("show-panel").addEventListener("click", async function () {
     var [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab || !tab.id) return;
@@ -152,7 +194,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       });
       // detector.js auto-runs detection after 1s — wait for that, then force panel
       setTimeout(function () {
-        chrome.tabs.sendMessage(tab.id, { type: "FORCE_PANEL" }).catch(function () {});
+        chrome.tabs.sendMessage(tab.id, { type: "FORCE_PANEL" }).catch(function () { });
       }, 1500);
       window.close();
     }
@@ -160,8 +202,8 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   openDashboard.addEventListener("click", async function () {
     var data = await chrome.storage.local.get("linkedout_dashboard_url");
-    var url = data.linkedout_dashboard_url;
-    if (!url) { alert("Set a Dashboard URL first (tap title 5x for settings)."); return; }
+    var url = data.linkedout_dashboard_url || LinkedOut.DEFAULT_DASHBOARD_URL;
+    if (!url) { alert("Set a Dashboard URL first (tap title 20x for settings)."); return; }
     chrome.tabs.create({ url: url });
   });
 

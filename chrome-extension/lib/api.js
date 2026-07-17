@@ -5,7 +5,7 @@ LinkedOut.API = {
     const data = await chrome.storage.local.get(["linkedout_token", "linkedout_api_url"]);
     return {
       token: data.linkedout_token || null,
-      apiUrl: data.linkedout_api_url || "",
+      apiUrl: data.linkedout_api_url || LinkedOut.DEFAULT_API_URL,
     };
   },
 
@@ -38,6 +38,26 @@ LinkedOut.API = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || "Login failed");
+    }
+    const data = await res.json();
+    await chrome.storage.local.set({
+      linkedout_token: data.token,
+      linkedout_user: data.user,
+    });
+    return data.user;
+  },
+
+  async signup(name, email, password) {
+    const { apiUrl } = await this._getConfig();
+    if (!apiUrl) throw new Error("API URL not configured. Set it in the extension popup.");
+    const res = await fetch(apiUrl + "/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Signup failed");
     }
     const data = await res.json();
     await chrome.storage.local.set({
