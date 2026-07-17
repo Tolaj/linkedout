@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/linkedout-extension.zip",
+      "destination": "/linkedout-extension.zip"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
