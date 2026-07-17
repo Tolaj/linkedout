@@ -115,7 +115,7 @@ export default function Landing() {
           can focus on landing the job, not managing spreadsheets.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <a
+          {/* <a
             href="https://chromewebstore.google.com"
             target="_blank"
             rel="noopener noreferrer"
@@ -123,7 +123,21 @@ export default function Landing() {
           >
             <Globe size={18} />
             Add to Chrome
-          </a>
+          </a> */}
+          <button
+            onClick={() => alert(`LinkedOut is currently under Chrome Web Store review. To use it in the meantime:
+
+1. click "Download Extension (.zip)"
+2. Unzip the downloaded file
+3. Open Chrome and go to chrome://extensions
+4. Enable "Developer mode" (top right toggle)
+5. Click "Load unpacked" and select the unzipped folder
+6. Thats it, create an account, and start tracking jobs`)}
+            className="inline-flex items-center gap-2 bg-base-100 text-base-900 px-6 py-3 rounded-lg font-medium hover:bg-base-200 transition-colors text-sm"
+          >
+            <Globe size={16} />
+            Add to Chrome
+          </button>
           <Link
             to="/linkedout-extension.zip"
             download
