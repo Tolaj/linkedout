@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Plus, Send, FileText, Clock, Mail, Trash2, Edit3, Eye, MailCheck, RefreshCw, ArrowUpRight, ArrowDownLeft, X } from "lucide-react";
 import NoWorkspace from "../components/NoWorkspace";
+import GmailSetupBanner from "../components/GmailSetupBanner";
 import useEmailStore from "../stores/useEmailStore";
 import useAppStore from "../stores/useAppStore";
 import useContactStore from "../stores/useContactStore";
@@ -65,6 +66,18 @@ export default function ColdEmails() {
           <p className="text-sm text-base-300">Templates, tracking, and Gmail-powered sends.</p>
         </div>
         <NoWorkspace page="emails" />
+      </div>
+    );
+  }
+
+  if (!isGmailConnected()) {
+    return (
+      <div className="p-6">
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold font-mono mb-1">emails</h1>
+          <p className="text-sm text-base-300">Templates, tracking, and Gmail-powered sends.</p>
+        </div>
+        <GmailSetupBanner onConnected={() => window.location.reload()} />
       </div>
     );
   }

@@ -96,37 +96,37 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
-        {[
-          { label: "Total", value: stats.total },
-          { label: "Active", value: stats.active },
-          { label: "Response rate", value: `${stats.total ? stats.responseRate : 0}%` },
-          { label: "Interview rate", value: `${stats.total ? stats.interviewRate : 0}%` },
-          { label: "Offers", value: stats.offers },
-        ].map((s) => (
-          <div key={s.label} className="bg-base-700 border border-base-600 rounded-lg px-4 py-3">
-            <div className="text-[11px] text-base-300 uppercase tracking-wide mb-1">{s.label}</div>
-            <div className="text-xl font-semibold font-mono">{s.value}</div>
-          </div>
-        ))}
-      </div>
+      {apps.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+          {[
+            { label: "Total", value: stats.total },
+            { label: "Active", value: stats.active },
+            { label: "Response rate", value: `${stats.total ? stats.responseRate : 0}%` },
+            { label: "Interview rate", value: `${stats.total ? stats.interviewRate : 0}%` },
+            { label: "Offers", value: stats.offers },
+          ].map((s) => (
+            <div key={s.label} className="bg-base-700 border border-base-600 rounded-lg px-4 py-3">
+              <div className="text-[11px] text-base-300 uppercase tracking-wide mb-1">{s.label}</div>
+              <div className="text-xl font-semibold font-mono">{s.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative mb-5 max-w-xs">
-        <Search className="w-4 h-4 text-base-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        <Search className="w-4 h-4 text-base-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search company or role"
-          className="input w-full pl-9 "
+          className="input w-full !pl-10"
         />
       </div>
 
-      {/* Board */}
       {apps.length === 0 ? (
         <div className="text-center py-16 text-base-400 text-sm">
-          No applications logged yet. Click "Log application" to add your first one.
+          No applications logged yet. Click &quot;Log application&quot; to add your first one.
         </div>
       ) : (
         <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-320px)] min-h-[400px]">

@@ -181,15 +181,17 @@ export default function Applications() {
           {syncMsg && (
             <span className="text-xs text-green-400">{syncMsg}</span>
           )}
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="flex items-center gap-2 bg-base-600 text-base-100 text-sm px-4 py-2.5 rounded-md hover:bg-base-500 transition-colors disabled:opacity-50"
-            title="Sync incoming emails from Gmail"
-          >
-            <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-            Sync
-          </button>
+          {isGmailConnected() && (
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="flex items-center gap-2 bg-base-600 text-base-100 text-sm px-4 py-2.5 rounded-md hover:bg-base-500 transition-colors disabled:opacity-50"
+              title="Sync incoming emails from Gmail"
+            >
+              <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+              Sync
+            </button>
+          )}
           <button
             onClick={() => { setEditingApp(null); setModalOpen(true); }}
             className="flex items-center gap-2 bg-accent text-accent-dark font-medium text-sm px-4 py-2.5 rounded-md hover:bg-accent-light transition-colors"
