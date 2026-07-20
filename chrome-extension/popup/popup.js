@@ -15,7 +15,13 @@ document.addEventListener("DOMContentLoaded", async function () {
   var urlMsg = document.getElementById("url-msg");
   var headerTap = document.getElementById("header-tap");
 
-  // SignUp 
+  document.getElementById("open-landing").addEventListener("click", async function () {
+    var data = await chrome.storage.local.get("linkedout_dashboard_url");
+    var url = data.linkedout_dashboard_url || LinkedOut.DEFAULT_DASHBOARD_URL || "https://linkedout.swapniljadhav.com";
+    chrome.tabs.create({ url: url });
+  });
+
+  // SignUp
   var signupView = document.getElementById("signup-view");
   var signupBtn = document.getElementById("signup-btn");
   var signupError = document.getElementById("signup-error");
@@ -230,9 +236,13 @@ document.addEventListener("DOMContentLoaded", async function () {
   });
 
   openDashboard.addEventListener("click", async function () {
-    var data = await chrome.storage.local.get("linkedout_dashboard_url");
+    var data = await chrome.storage.local.get(["linkedout_dashboard_url", "linkedout_token"]);
     var url = data.linkedout_dashboard_url || LinkedOut.DEFAULT_DASHBOARD_URL;
     if (!url) { alert("Set a Dashboard URL first (tap title 20x for settings)."); return; }
+    if (data.linkedout_token) {
+      var sep = url.includes("?") ? "&" : "?";
+      url = url + sep + "ext_token=" + encodeURIComponent(data.linkedout_token);
+    }
     chrome.tabs.create({ url: url });
   });
 

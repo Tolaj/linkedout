@@ -26,6 +26,18 @@ body {
   border-bottom: 1px solid #404040;
 }
 
+.header-link-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #737373;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  line-height: 0;
+}
+.header-link-btn:hover { color: #E5E5E5; background: #404040; }
+
 .logo {
   width: 24px;
   height: 24px;

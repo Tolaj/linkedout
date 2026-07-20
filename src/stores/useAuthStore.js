@@ -18,6 +18,18 @@ const USER_STORAGE_KEYS = [
   "google_client_secret",
 ];
 
+function consumeExtToken() {
+  const params = new URLSearchParams(window.location.search);
+  const extToken = params.get("ext_token");
+  if (!extToken) return null;
+  localStorage.setItem("linkedout_token", extToken);
+  params.delete("ext_token");
+  const clean = params.toString();
+  const newUrl = window.location.pathname + (clean ? "?" + clean : "") + window.location.hash;
+  window.history.replaceState(null, "", newUrl);
+  return extToken;
+}
+
 function clearUserData() {
   USER_STORAGE_KEYS.forEach((k) => localStorage.removeItem(k));
   Object.keys(localStorage).forEach((k) => {
@@ -27,7 +39,7 @@ function clearUserData() {
 
 const useAuthStore = create((set, get) => ({
   user: null,
-  token: localStorage.getItem("linkedout_token"),
+  token: consumeExtToken() || localStorage.getItem("linkedout_token"),
   loading: true,
 
   setAuth(user, token) {
