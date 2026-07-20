@@ -10,8 +10,8 @@ export default function Resumes() {
   const { resumes, loaded, load, addResume, deleteResume } = useResumeStore();
   const [folderFiles, setFolderFiles] = useState([]);
   const [showUpload, setShowUpload] = useState(false);
-  const hasWorkspace = isFileSystemSupported() && hasRootDirectory();
   const folderName = useSettingsStore((s) => s.folderName);
+  const hasWorkspace = !!folderName;
 
   useEffect(() => { if (hasWorkspace) load(); }, [load, hasWorkspace, folderName]);
 

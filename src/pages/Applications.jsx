@@ -7,11 +7,11 @@ import useContactStore from "../stores/useContactStore";
 import useNoteStore from "../stores/useNoteStore";
 import { uid, STAGE_COLOR, EMAIL_STATUSES } from "../lib/constants";
 import { isFileSystemSupported, hasRootDirectory, saveFile, createCompanyFolder, listFiles } from "../services/fileSystem";
+import useSettingsStore from "../stores/useSettingsStore";
 import { isGmailConnected, sendEmail, connectGmail, getEmailBody } from "../services/gmail";
 import { syncInboundEmails, clearSkippedCache } from "../services/emailSync";
 import FormModal from "../components/FormModal";
 import { format, parseISO } from "date-fns";
-import useSettingsStore from "../stores/useSettingsStore";
 
 function emailMatchesTargets(email, domain) {
   if (!domain || !email.recipientEmail) return false;
@@ -100,8 +100,8 @@ export default function Applications() {
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
   const [readingEmail, setReadingEmail] = useState(null);
-  const hasWorkspace = isFileSystemSupported() && hasRootDirectory();
   const folderName = useSettingsStore((s) => s.folderName);
+  const hasWorkspace = !!folderName;
 
   useEffect(() => {
     if (hasWorkspace) { load(); loadEmails(); loadContacts(); loadNotes(); }

@@ -1,15 +1,6 @@
 import { useState } from "react";
 import { FolderOpen } from "lucide-react";
 
-const PAGE_LABELS = {
-  dashboard: "Dashboard",
-  resumes: "Resumes",
-  applications: "Applications",
-  emails: "Emails",
-  quickapply: "Quick Apply",
-  prep: "Interview Prep",
-};
-
 export default function NoWorkspace({ page }) {
   const [connecting, setConnecting] = useState(false);
 
@@ -34,7 +25,7 @@ export default function NoWorkspace({ page }) {
       <FolderOpen className="w-10 h-10 text-base-500 mb-4" />
       <h2 className="text-base font-medium mb-1">No workspace connected</h2>
       <p className="text-sm text-base-400 max-w-sm mb-5">
-        {PAGE_LABELS[page] || "This page"} requires a workspace folder. Select or create a folder to get started.
+        Select or create a folder to get started. The folder name becomes your workspace.
       </p>
       <button
         onClick={handleConnect}

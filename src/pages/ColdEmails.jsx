@@ -9,7 +9,6 @@ import { isGmailConnected, sendEmail, connectGmail, getEmailBody } from "../serv
 import { syncInboundEmails, clearSkippedCache } from "../services/emailSync";
 import { EMAIL_STATUSES, uid } from "../lib/constants";
 import { format, isPast, parseISO } from "date-fns";
-import { isFileSystemSupported, hasRootDirectory } from "../services/fileSystem";
 import useSettingsStore from "../stores/useSettingsStore";
 
 const TABS = ["tracker", "templates", "compose"];
@@ -25,9 +24,9 @@ export default function ColdEmails() {
   const [showTemplateForm, setShowTemplateForm] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
-  const hasWorkspace = isFileSystemSupported() && hasRootDirectory();
   const navigate = useNavigate();
   const folderName = useSettingsStore((s) => s.folderName);
+  const hasWorkspace = !!folderName;
 
   const loadApps = useAppStore((s) => s.load);
   const loadContacts = useContactStore((s) => s.load);

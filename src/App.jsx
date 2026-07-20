@@ -9,13 +9,20 @@ import Support from "./pages/Support";
 import useAuthStore from "./stores/useAuthStore";
 import { restoreRootDirectory } from "./services/fileSystem";
 
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const ColdEmails = lazy(() => import("./pages/ColdEmails"));
-const Resumes = lazy(() => import("./pages/Resumes"));
-const Applications = lazy(() => import("./pages/Applications"));
-const InterviewPrep = lazy(() => import("./pages/InterviewPrep"));
-const Settings = lazy(() => import("./pages/Settings"));
-const QuickApply = lazy(() => import("./pages/QuickApply"));
+function lazyRetry(fn) {
+  return lazy(() => fn().catch(() => {
+    window.location.reload();
+    return new Promise(() => {});
+  }));
+}
+
+const Dashboard = lazyRetry(() => import("./pages/Dashboard"));
+const ColdEmails = lazyRetry(() => import("./pages/ColdEmails"));
+const Resumes = lazyRetry(() => import("./pages/Resumes"));
+const Applications = lazyRetry(() => import("./pages/Applications"));
+const InterviewPrep = lazyRetry(() => import("./pages/InterviewPrep"));
+const Settings = lazyRetry(() => import("./pages/Settings"));
+const QuickApply = lazyRetry(() => import("./pages/QuickApply"));
 
 class ErrorBoundary extends Component {
   state = { error: null };

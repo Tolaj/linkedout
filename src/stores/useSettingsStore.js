@@ -89,7 +89,7 @@ const useSettingsStore = create((set, get) => ({
     if (!user) return;
     const s = user.settings || user;
 
-    if (s.folderName && !localStorage.getItem("linkedout_folder")) {
+    if (s.folderName) {
       localStorage.setItem("linkedout_folder", s.folderName);
       set({ folderName: s.folderName });
     }

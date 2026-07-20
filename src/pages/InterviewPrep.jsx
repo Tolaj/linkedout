@@ -3,7 +3,6 @@ import { BookOpen, Plus, Save, Trash2 } from "lucide-react";
 import NoWorkspace from "../components/NoWorkspace";
 import useNoteStore from "../stores/useNoteStore";
 import { uid } from "../lib/constants";
-import { isFileSystemSupported, hasRootDirectory } from "../services/fileSystem";
 import useSettingsStore from "../stores/useSettingsStore";
 
 const SECTIONS = ["DSA", "System Design", "Behavioral (STAR)", "Company Specific"];
@@ -17,8 +16,8 @@ export default function InterviewPrep() {
   const [newTitle, setNewTitle] = useState("");
   const [newSection, setNewSection] = useState(SECTIONS[0]);
 
-  const hasWorkspace = isFileSystemSupported() && hasRootDirectory();
   const folderName = useSettingsStore((s) => s.folderName);
+  const hasWorkspace = !!folderName;
 
   useEffect(() => {
     if (hasWorkspace) load();

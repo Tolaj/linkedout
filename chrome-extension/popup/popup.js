@@ -10,6 +10,8 @@ document.addEventListener("DOMContentLoaded", async function () {
   var emailInput = document.getElementById("email");
   var passwordInput = document.getElementById("password");
   var loginError = document.getElementById("login-error");
+  var workspaceView = document.getElementById("workspace-view");
+  var workspaceBtn = document.getElementById("workspace-btn");
   var apiUrlInput = document.getElementById("api-url");
   var dashboardUrlInput = document.getElementById("dashboard-url");
   var urlMsg = document.getElementById("url-msg");
@@ -68,6 +70,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     userView.style.display = "none";
     loadingView.style.display = "none";
     signupView.style.display = "none";
+    workspaceView.style.display = "none";
     view.style.display = "block";
   }
 
@@ -104,7 +107,15 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   }
 
+  var _currentUser = null;
+
   function showUserView(user) {
+    _currentUser = user;
+    var folder = (user.settings && user.settings.folderName) || user.folderName || "";
+    if (!folder) {
+      showView(workspaceView);
+      return;
+    }
     document.getElementById("user-name").textContent = user.name || "User";
     document.getElementById("user-email").textContent = user.email || "";
     showView(userView);
@@ -195,6 +206,30 @@ document.addEventListener("DOMContentLoaded", async function () {
     } finally {
       signupBtn.disabled = false;
       signupBtn.textContent = "Create Account";
+    }
+  });
+
+  workspaceBtn.addEventListener("click", async function () {
+    try {
+      var handle = await window.showDirectoryPicker({ mode: "readwrite" });
+      var name = handle.name;
+      workspaceBtn.disabled = true;
+      workspaceBtn.textContent = "Creating...";
+      var config = await LinkedOut.API._getConfig();
+      await fetch(config.apiUrl + "/auth/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + config.token },
+        body: JSON.stringify({ folderName: name, folders: [name] }),
+      });
+      if (_currentUser) {
+        _currentUser.folderName = name;
+        showUserView(_currentUser);
+      }
+    } catch (e) {
+      if (e.name !== "AbortError") console.warn("Workspace creation failed:", e);
+    } finally {
+      workspaceBtn.disabled = false;
+      workspaceBtn.textContent = "Connect Folder";
     }
   });
 

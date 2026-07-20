@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import NoWorkspace from "../components/NoWorkspace";
 import useProfileFieldStore from "../stores/useProfileFieldStore";
 import { PROFILE_CATEGORIES, uid } from "../lib/constants";
-import { isFileSystemSupported, hasRootDirectory } from "../services/fileSystem";
 import useSettingsStore from "../stores/useSettingsStore";
 
 const CATEGORY_LABELS = {
@@ -20,9 +19,9 @@ export default function QuickApply() {
   const { fields, loaded, load, seedDefaults, updateField, addField, deleteField } = useProfileFieldStore();
   const [collapsed, setCollapsed] = useState({});
   const [adding, setAdding] = useState(null);
-  const hasWorkspace = isFileSystemSupported() && hasRootDirectory();
   const navigate = useNavigate();
   const folderName = useSettingsStore((s) => s.folderName);
+  const hasWorkspace = !!folderName;
 
   useEffect(() => { if (hasWorkspace) load(); }, [load, hasWorkspace, folderName]);
   useEffect(() => { if (hasWorkspace && loaded) seedDefaults(); }, [loaded, seedDefaults, hasWorkspace]);

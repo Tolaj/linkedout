@@ -7,7 +7,6 @@ import { KANBAN_COLUMNS, CLOSED_STATUSES, STAGE_COLOR } from "../lib/constants";
 import AppCard from "../components/AppCard";
 import FormModal from "../components/FormModal";
 import { EMPTY_APP } from "../lib/constants";
-import { isFileSystemSupported, hasRootDirectory } from "../services/fileSystem";
 import useSettingsStore from "../stores/useSettingsStore";
 
 export default function Dashboard() {
@@ -15,9 +14,9 @@ export default function Dashboard() {
   const [query, setQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingApp, setEditingApp] = useState(null);
-  const hasWorkspace = isFileSystemSupported() && hasRootDirectory();
   const navigate = useNavigate();
   const folderName = useSettingsStore((s) => s.folderName);
+  const hasWorkspace = !!folderName;
 
   useEffect(() => { if (hasWorkspace) load(); }, [load, hasWorkspace, folderName]);
 
