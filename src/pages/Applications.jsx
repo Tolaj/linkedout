@@ -414,7 +414,7 @@ function AppRow({ app, color, domainEmails, isExpanded, onToggle, onEdit, onDele
                   />
                 )}
 
-                {!app.domain ? (
+                {!app.domain && domainEmails.length === 0 ? (
                   <p className="text-xs text-base-400">Add emails or domains in the application form to auto-track related emails.</p>
                 ) : domainEmails.length === 0 ? (
                   <p className="text-xs text-base-400">No matching emails found yet.</p>
