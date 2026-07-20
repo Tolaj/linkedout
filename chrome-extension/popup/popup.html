@@ -21,8 +21,14 @@
       <span class="title">linkedout</span>
     </div>
 
-    <!-- Dev settings — hidden by default, tap title 5x to reveal -->
+    <!-- Dev settings — hidden by default, tap title 20x to reveal -->
     <div id="dev-section" style="display:none;">
+      <div class="env-toggle">
+        <span class="env-label" id="env-label">Production</span>
+        <button class="toggle-btn" id="env-toggle" title="Switch environment">
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
       <div class="section">
         <label class="label">API URL (backend)</label>
         <input type="text" id="api-url" class="input mono" placeholder="http://localhost:4000/api" />

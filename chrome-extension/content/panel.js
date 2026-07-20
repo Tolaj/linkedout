@@ -953,11 +953,16 @@ window.LinkedOut = window.LinkedOut || {};
       <div class="lo-login-body">
         <div class="lo-login-icon">&#128274;</div>
         <div class="lo-login-title">Sign in to track this job</div>
-        <div class="lo-login-desc">Job detected on this page. Click the LinkedOut icon in your browser toolbar to log in.</div>
+        <div class="lo-login-desc">Job detected on this page. Sign in to start tracking your applications.</div>
+        <button class="lo-login-btn" id="lo-login-open">Sign In</button>
       </div>
     `;
     shadowRoot.appendChild(panel);
     document.body.appendChild(panelHost);
+
+    shadowRoot.getElementById("lo-login-open").addEventListener("click", function () {
+      chrome.runtime.sendMessage({ type: "OPEN_POPUP" });
+    });
 
     shadowRoot.getElementById("lo-close").addEventListener("click", function () {
       panelHost.remove(); panelHost = null; dismissed[window.location.href] = true;

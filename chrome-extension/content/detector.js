@@ -151,6 +151,13 @@ window.LinkedOut = window.LinkedOut || {};
     document.addEventListener("click", function () { startPoll(); }, { passive: true });
   }
 
+  // Re-detect when user logs in (token appears in storage)
+  chrome.storage.onChanged.addListener(function (changes, area) {
+    if (area === "local" && changes.linkedout_token && changes.linkedout_token.newValue) {
+      runDetection();
+    }
+  });
+
   // Initial run — delay slightly to let page content render
   setTimeout(runDetection, 1000);
   watchNavigation();

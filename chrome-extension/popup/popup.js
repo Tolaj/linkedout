@@ -22,7 +22,29 @@ document.addEventListener("DOMContentLoaded", async function () {
   var goSignup = document.getElementById("go-signup");
   var goLogin = document.getElementById("go-login");
 
-  // Tap title 5 times to reveal dev settings
+  var PROD_API = "https://linkedout-backend-seven.vercel.app/api";
+  var PROD_DASH = "https://linkedout.swapniljadhav.com";
+  var LOCAL_API = "http://localhost:4000/api";
+  var LOCAL_DASH = "http://localhost:5173";
+
+  var envToggle = document.getElementById("env-toggle");
+  var envLabel = document.getElementById("env-label");
+  var isLocal = false;
+
+  function setEnv(local) {
+    isLocal = local;
+    envToggle.classList.toggle("local", isLocal);
+    envLabel.textContent = isLocal ? "Local" : "Production";
+    apiUrlInput.value = isLocal ? LOCAL_API : PROD_API;
+    dashboardUrlInput.value = isLocal ? LOCAL_DASH : PROD_DASH;
+  }
+
+  envToggle.addEventListener("click", function () {
+    setEnv(!isLocal);
+    saveUrls();
+  });
+
+  // Tap title 20 times to reveal dev settings
   var tapCount = 0;
   var tapTimer = null;
   headerTap.addEventListener("click", function () {
@@ -49,8 +71,15 @@ document.addEventListener("DOMContentLoaded", async function () {
       "linkedout_token", "linkedout_user", "linkedout_api_url", "linkedout_dashboard_url"
     ]);
 
-    apiUrlInput.value = data.linkedout_api_url || "";
-    dashboardUrlInput.value = data.linkedout_dashboard_url || "";
+    var storedApi = data.linkedout_api_url || PROD_API;
+    var storedDash = data.linkedout_dashboard_url || PROD_DASH;
+    apiUrlInput.value = storedApi;
+    dashboardUrlInput.value = storedDash;
+    setEnv(storedApi === LOCAL_API);
+
+    if (!data.linkedout_api_url) {
+      await chrome.storage.local.set({ linkedout_api_url: PROD_API, linkedout_dashboard_url: PROD_DASH });
+    }
 
     if (!data.linkedout_token) {
       showView(loginView);
