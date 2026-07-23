@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { api } from "../services/api";
 import { uid } from "../lib/constants";
+import useToastStore from "./useToastStore";
 
 const useProcessedEmailStore = create((set, get) => ({
   entries: [],
@@ -12,6 +13,7 @@ const useProcessedEmailStore = create((set, get) => ({
       set({ entries: Array.isArray(remote) ? remote : [], loaded: true });
     } catch {
       if (!get().loaded) set({ loaded: true });
+      useToastStore.getState().addToast("Failed to load processed emails");
     }
   },
 
@@ -39,8 +41,9 @@ const useProcessedEmailStore = create((set, get) => ({
   markProcessed: async (gmailId, status, emailDate) => {
     if (get().entries.some((e) => e.gmailId === gmailId)) return;
     const entry = { id: uid(), gmailId, status, emailDate: emailDate || null };
-    set({ entries: [...get().entries, entry] });
-    try { await api.create("processedemails", entry); } catch {}
+    const prev = get().entries;
+    set({ entries: [...prev, entry] });
+    try { await api.create("processedemails", entry); } catch { set({ entries: prev }); useToastStore.getState().addToast("Failed to save processed email"); }
   },
 
   markProcessedBulk: async (items, status) => {
@@ -55,8 +58,9 @@ const useProcessedEmailStore = create((set, get) => ({
         return { id: uid(), gmailId: item.gmailId, status, emailDate: item.emailDate || null };
       });
     if (newEntries.length === 0) return;
-    set({ entries: [...get().entries, ...newEntries] });
-    try { await api.sync("processedemails", newEntries); } catch {}
+    const prev = get().entries;
+    set({ entries: [...prev, ...newEntries] });
+    try { await api.sync("processedemails", newEntries); } catch { set({ entries: prev }); useToastStore.getState().addToast("Failed to save processed emails"); }
   },
 
   clearSkipped: async () => {
@@ -64,7 +68,7 @@ const useProcessedEmailStore = create((set, get) => ({
     const remaining = get().entries.filter((e) => e.status !== "skipped");
     set({ entries: remaining });
     for (const entry of skipped) {
-      try { await api.remove("processedemails", entry.id); } catch {}
+      try { await api.remove("processedemails", entry.id); } catch { useToastStore.getState().addToast("Failed to clear skipped emails"); break; }
     }
   },
 }));

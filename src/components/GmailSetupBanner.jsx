@@ -4,9 +4,12 @@ import useSettingsStore from "../stores/useSettingsStore";
 import { isGmailConfigured, connectGmail, initGmail } from "../services/gmail";
 
 export default function GmailSetupBanner({ onConnected }) {
-  const settings = useSettingsStore();
-  const [clientId, setClientId] = useState(settings.googleClientId);
-  const [clientSecret, setClientSecret] = useState(settings.googleClientSecret);
+  const googleClientId = useSettingsStore((s) => s.googleClientId);
+  const googleClientSecret = useSettingsStore((s) => s.googleClientSecret);
+  const setGoogleClientId = useSettingsStore((s) => s.setGoogleClientId);
+  const setGoogleClientSecret = useSettingsStore((s) => s.setGoogleClientSecret);
+  const [clientId, setClientId] = useState(googleClientId);
+  const [clientSecret, setClientSecret] = useState(googleClientSecret);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState("");
 
@@ -16,8 +19,8 @@ export default function GmailSetupBanner({ onConnected }) {
       return;
     }
     setError("");
-    settings.setGoogleClientId(clientId.trim());
-    settings.setGoogleClientSecret(clientSecret.trim());
+    setGoogleClientId(clientId.trim());
+    setGoogleClientSecret(clientSecret.trim());
     initGmail();
 
     setConnecting(true);

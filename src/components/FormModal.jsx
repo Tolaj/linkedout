@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, Trash2 } from "lucide-react";
 import { STAGES, SOURCES, EMPTY_APP } from "../lib/constants";
 import useAppStore from "../stores/useAppStore";
@@ -9,6 +9,17 @@ export default function FormModal({ app, onClose }) {
   const { addApp, updateApp, deleteApp } = useAppStore();
   const resumes = useResumeStore((s) => s.resumes);
   const [form, setForm] = useState(app ? { ...EMPTY_APP, ...app } : { ...EMPTY_APP, dateApplied: new Date().toISOString().slice(0, 10) });
+  const modalRef = useRef(null);
+
+  useEffect(() => {
+    const handleKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  useEffect(() => {
+    if (modalRef.current) modalRef.current.focus();
+  }, []);
 
   function set(k, v) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -26,6 +37,7 @@ export default function FormModal({ app, onClose }) {
   }
 
   async function handleDelete() {
+    if (!window.confirm("Delete this application?")) return;
     await deleteApp(app.id);
     onClose();
   }
@@ -33,14 +45,19 @@ export default function FormModal({ app, onClose }) {
   return (
     <div className="fixed inset-0 bg-black/20 flex items-center justify-center p-4 z-50" onClick={onClose}>
       <div
-        className="bg-base-900 border border-base-600 rounded-xl w-full max-w-md max-h-[85vh] overflow-y-auto"
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={isEdit ? "Edit application" : "New application"}
+        tabIndex={-1}
+        className="bg-base-900 border border-base-600 rounded-xl w-full max-w-md max-h-[85vh] overflow-y-auto outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-base-600">
           <h2 className="text-sm font-semibold font-mono">
             {isEdit ? "edit_application" : "new_application"}
           </h2>
-          <button onClick={onClose} className="text-base-400 hover:text-base-100">
+          <button onClick={onClose} className="text-base-400 hover:text-base-100" aria-label="Close">
             <X className="w-4 h-4" />
           </button>
         </div>

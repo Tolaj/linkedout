@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
 import { Plus, Search, Loader2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import useAppStore from "../stores/useAppStore";
 import NoWorkspace from "../components/NoWorkspace";
 import { KANBAN_COLUMNS, CLOSED_STATUSES, STAGE_COLOR } from "../lib/constants";
@@ -14,7 +13,6 @@ export default function Dashboard() {
   const [query, setQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingApp, setEditingApp] = useState(null);
-  const navigate = useNavigate();
   const folderName = useSettingsStore((s) => s.folderName);
   const hasWorkspace = !!folderName;
 

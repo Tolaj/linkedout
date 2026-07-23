@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { ChevronDown, ChevronRight, Plus, Trash2, Upload, X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import NoWorkspace from "../components/NoWorkspace";
 import useProfileFieldStore from "../stores/useProfileFieldStore";
 import { PROFILE_CATEGORIES, uid } from "../lib/constants";
@@ -19,7 +18,6 @@ export default function QuickApply() {
   const { fields, loaded, load, seedDefaults, updateField, addField, deleteField } = useProfileFieldStore();
   const [collapsed, setCollapsed] = useState({});
   const [adding, setAdding] = useState(null);
-  const navigate = useNavigate();
   const folderName = useSettingsStore((s) => s.folderName);
   const hasWorkspace = !!folderName;
 

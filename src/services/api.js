@@ -23,7 +23,6 @@ async function request(path, options = {}) {
       if (res.status === 401) {
         localStorage.removeItem("linkedout_token");
         localStorage.removeItem("linkedout_user");
-        window.location.href = "/login";
         throw new Error("Session expired. Please log in again.");
       }
       const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -38,17 +37,10 @@ async function request(path, options = {}) {
   }
 }
 
-export async function healthCheck() {
-  try {
-    const data = await request("/health");
-    return data.db === "connected";
-  } catch {
-    return false;
-  }
-}
+export { API_URL };
 
 export const api = {
-  getAll:  (collection) => request(`/${collection}`),
+  getAll:  (collection) => request(`/${collection}`).then((res) => Array.isArray(res) ? res : res.data),
   getOne:  (collection, id) => request(`/${collection}/${id}`),
   create:  (collection, data) => request(`/${collection}`, { method: "POST", body: JSON.stringify(data) }),
   update:  (collection, id, data) => request(`/${collection}/${id}`, { method: "PUT", body: JSON.stringify(data) }),

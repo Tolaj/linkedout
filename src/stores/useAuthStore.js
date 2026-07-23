@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import useSettingsStore from "./useSettingsStore";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+import { API_URL } from "../services/api";
 
 const USER_STORAGE_KEYS = [
   "linkedout_token",
@@ -51,7 +50,6 @@ const useAuthStore = create((set, get) => ({
   logout() {
     clearUserData();
     set({ user: null, token: null, loading: false });
-    window.location.href = "/login";
   },
 
   async register(name, email, password) {

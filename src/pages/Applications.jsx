@@ -5,12 +5,14 @@ import useAppStore from "../stores/useAppStore";
 import useEmailStore from "../stores/useEmailStore";
 import useContactStore from "../stores/useContactStore";
 import useNoteStore from "../stores/useNoteStore";
-import { uid, STAGE_COLOR, EMAIL_STATUSES } from "../lib/constants";
+import { STAGE_COLOR, EMAIL_STATUSES } from "../lib/constants";
 import { isFileSystemSupported, hasRootDirectory, saveFile, createCompanyFolder, listFiles } from "../services/fileSystem";
 import useSettingsStore from "../stores/useSettingsStore";
-import { isGmailConnected, sendEmail, connectGmail, getEmailBody } from "../services/gmail";
-import { syncInboundEmails, clearSkippedCache } from "../services/emailSync";
+import { isGmailConnected, sendEmail, connectGmail } from "../services/gmail";
+import { syncInboundEmails } from "../services/emailSync";
 import FormModal from "../components/FormModal";
+import EmailReadModal from "../components/EmailReadModal";
+import useEmailSync from "../hooks/useEmailSync";
 import { format, parseISO } from "date-fns";
 
 function emailMatchesTargets(email, domain) {
@@ -22,73 +24,6 @@ function emailMatchesTargets(email, domain) {
   );
 }
 
-function AppEmailReadModal({ email, onClose, updateEmail }) {
-  const [body, setBody] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!email) { setLoading(false); return; }
-    if (email.body) {
-      setBody({ html: email.body });
-      setLoading(false);
-      return;
-    }
-    if (!email.gmailId) { setLoading(false); return; }
-    setLoading(true);
-    getEmailBody(email.gmailId).then((data) => {
-      setBody(data);
-      if (data && updateEmail) {
-        const content = data.html || data.text || "";
-        updateEmail(email.id, { body: content });
-      }
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [email?.id]);
-
-  if (!email) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="bg-base-800 border border-base-600 rounded-lg w-full max-w-3xl max-h-[85vh] flex flex-col mx-4" onClick={(ev) => ev.stopPropagation()}>
-        <div className="flex items-start justify-between px-5 py-4 border-b border-base-600">
-          <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-base truncate">{email.subject || "(no subject)"}</h3>
-            <div className="text-xs text-base-400 mt-1">
-              <span>From: {email.recipientEmail}</span>
-              {email.sentAt && <span className="ml-3">{format(parseISO(email.sentAt), "MMM d, yyyy 'at' h:mm a")}</span>}
-            </div>
-          </div>
-          <button onClick={onClose} className="text-base-400 hover:text-base-100 ml-3 mt-0.5">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          {loading ? (
-            <div className="text-center text-base-400 py-8">Loading email...</div>
-          ) : body?.html ? (
-            <iframe
-              srcDoc={body.html}
-              className="w-full border-0 rounded bg-white"
-              style={{ minHeight: "400px" }}
-              sandbox="allow-same-origin"
-              onLoad={(ev) => {
-                const doc = ev.target.contentDocument;
-                if (doc) ev.target.style.height = doc.documentElement.scrollHeight + "px";
-              }}
-            />
-          ) : body?.text ? (
-            <pre className="whitespace-pre-wrap text-sm text-base-200 font-sans">{body.text}</pre>
-          ) : (
-            <div className="text-center text-base-400 py-8">
-              {isGmailConnected() ? "Could not load email body." : "Connect Gmail to read emails."}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function Applications() {
   const { apps, loaded, load, deleteApp } = useAppStore();
   const { emails, load: loadEmails, updateEmail, deleteEmail } = useEmailStore();
@@ -97,9 +32,8 @@ export default function Applications() {
   const [editingApp, setEditingApp] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
-  const [syncing, setSyncing] = useState(false);
-  const [syncMsg, setSyncMsg] = useState("");
   const [readingEmail, setReadingEmail] = useState(null);
+  const { syncing, syncMsg, setSyncMsg, handleSync } = useEmailSync();
   const folderName = useSettingsStore((s) => s.folderName);
   const hasWorkspace = !!folderName;
 
@@ -126,27 +60,6 @@ export default function Applications() {
     setExpandedId((prev) => (prev === id ? null : id));
   }
 
-  async function handleSync() {
-    if (!isGmailConnected()) {
-      try { await connectGmail(); } catch { return; }
-    }
-    if (!localStorage.getItem("linkedout_skipped_v2")) {
-      await clearSkippedCache();
-      localStorage.setItem("linkedout_skipped_v2", "1");
-    }
-    setSyncing(true);
-    setSyncMsg("");
-    const r = await syncInboundEmails((msg) => setSyncMsg(msg));
-    const parts = [];
-    if (r.added) parts.push(`${r.added} email${r.added > 1 ? "s" : ""}`);
-    if (r.created) parts.push(`${r.created} app${r.created > 1 ? "s" : ""} created`);
-    if (r.linked) parts.push(`${r.linked} linked`);
-    if (r.updated) parts.push(`${r.updated} stage${r.updated > 1 ? "s" : ""} updated`);
-    setSyncMsg(parts.length ? parts.join(", ") : "No new emails");
-    setSyncing(false);
-    setTimeout(() => setSyncMsg(""), 5000);
-  }
-
   if (hasWorkspace && !loaded) {
     return (
       <div className="p-6 flex items-center justify-center h-64">
@@ -170,7 +83,7 @@ export default function Applications() {
   return (
     <div className="p-6">
       {readingEmail && (
-        <AppEmailReadModal email={readingEmail} onClose={() => setReadingEmail(null)} updateEmail={updateEmail} />
+        <EmailReadModal email={readingEmail} onClose={() => setReadingEmail(null)} updateEmail={updateEmail} />
       )}
       <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
         <div>
@@ -245,7 +158,7 @@ export default function Applications() {
                     isExpanded={isExpanded}
                     onToggle={() => toggleExpand(app.id)}
                     onEdit={() => setEditingApp(app)}
-                    onDelete={() => deleteApp(app.id)}
+                    onDelete={() => { if (window.confirm("Delete this application?")) deleteApp(app.id); }}
                     updateEmail={updateEmail}
                     deleteEmail={deleteEmail}
                     addEmail={useEmailStore.getState().addEmail}
@@ -288,7 +201,7 @@ function AppRow({ app, color, domainEmails, isExpanded, onToggle, onEdit, onDele
         }).catch(() => {});
       }
     }
-  }, [isExpanded]);
+  }, [isExpanded, noteLoaded, appNote, app.company]);
 
   function sanitize(s) {
     return s.replace(/[^a-zA-Z0-9_\- ]/g, "").replace(/\s+/g, "_");
@@ -330,7 +243,7 @@ function AppRow({ app, color, domainEmails, isExpanded, onToggle, onEdit, onDele
     <>
       <tr className={`bg-base-900 hover:bg-base-700 transition-colors ${isExpanded ? "bg-base-700" : ""}`}>
         <td className="px-3 py-3">
-          <button onClick={onToggle} className="text-base-400 hover:text-base-100 transition-colors">
+          <button onClick={onToggle} className="text-base-400 hover:text-base-100 transition-colors" aria-label={isExpanded ? "Collapse row" : "Expand row"}>
             {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           </button>
         </td>
@@ -362,15 +275,15 @@ function AppRow({ app, color, domainEmails, isExpanded, onToggle, onEdit, onDele
         </td>
         <td className="px-4 py-3">
           <div className="flex items-center justify-end gap-2">
-            <button onClick={onEdit} className="text-base-400 hover:text-accent" title="Edit">
+            <button onClick={onEdit} className="text-base-400 hover:text-accent" title="Edit" aria-label="Edit application">
               <Edit3 className="w-4 h-4" />
             </button>
             {app.link && (
-              <a href={app.link} target="_blank" rel="noopener noreferrer" className="text-base-400 hover:text-accent" title="Job posting">
+              <a href={app.link} target="_blank" rel="noopener noreferrer" className="text-base-400 hover:text-accent" title="Job posting" aria-label="Open job posting">
                 <ExternalLink className="w-4 h-4" />
               </a>
             )}
-            <button onClick={onDelete} className="text-base-400 hover:text-[#DC2626]" title="Delete">
+            <button onClick={onDelete} className="text-base-400 hover:text-[#DC2626]" title="Delete" aria-label="Delete application">
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
@@ -472,7 +385,7 @@ function AppRow({ app, color, domainEmails, isExpanded, onToggle, onEdit, onDele
                                     <Eye className="w-3.5 h-3.5" />
                                   </button>
                                 )}
-                                <button onClick={(ev) => { ev.stopPropagation(); deleteEmail(e.id); }} className="text-base-400 hover:text-[#DC2626]">
+                                <button onClick={(ev) => { ev.stopPropagation(); if (window.confirm("Delete this email?")) deleteEmail(e.id); }} className="text-base-400 hover:text-[#DC2626]" aria-label="Delete email">
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>
@@ -625,10 +538,10 @@ function RecipientsPanel({ app }) {
                     {c.position && <span className="text-base-400">{c.position}</span>}
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <button onClick={() => startEdit(c)} className="text-base-400 hover:text-accent">
+                    <button onClick={() => startEdit(c)} className="text-base-400 hover:text-accent" aria-label="Edit contact">
                       <Edit3 className="w-3 h-3" />
                     </button>
-                    <button onClick={() => deleteContact(c.id)} className="text-base-400 hover:text-[#DC2626]">
+                    <button onClick={() => { if (window.confirm("Delete this contact?")) deleteContact(c.id); }} className="text-base-400 hover:text-[#DC2626]" aria-label="Delete contact">
                       <Trash2 className="w-3 h-3" />
                     </button>
                   </div>

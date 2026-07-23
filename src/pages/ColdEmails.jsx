@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { Plus, Send, FileText, Clock, Mail, Trash2, Edit3, Eye, MailCheck, RefreshCw, ArrowUpRight, ArrowDownLeft, X } from "lucide-react";
 import NoWorkspace from "../components/NoWorkspace";
 import GmailSetupBanner from "../components/GmailSetupBanner";
+import EmailReadModal from "../components/EmailReadModal";
 import useEmailStore from "../stores/useEmailStore";
 import useAppStore from "../stores/useAppStore";
 import useContactStore from "../stores/useContactStore";
-import { isGmailConnected, sendEmail, connectGmail, getEmailBody } from "../services/gmail";
-import { syncInboundEmails, clearSkippedCache } from "../services/emailSync";
-import { EMAIL_STATUSES, uid } from "../lib/constants";
+import useEmailSync from "../hooks/useEmailSync";
+import { isGmailConnected, sendEmail, connectGmail } from "../services/gmail";
+import { EMAIL_STATUSES } from "../lib/constants";
 import { format, isPast, parseISO } from "date-fns";
 import useSettingsStore from "../stores/useSettingsStore";
 
@@ -23,9 +24,7 @@ export default function ColdEmails() {
   const [showComposer, setShowComposer] = useState(false);
   const [editTemplate, setEditTemplate] = useState(null);
   const [showTemplateForm, setShowTemplateForm] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [syncMsg, setSyncMsg] = useState("");
-  const navigate = useNavigate();
+  const { syncing, syncMsg, handleSync } = useEmailSync();
   const folderName = useSettingsStore((s) => s.folderName);
   const hasWorkspace = !!folderName;
 
@@ -34,29 +33,7 @@ export default function ColdEmails() {
   useEffect(() => { if (hasWorkspace) { load(); loadApps(); loadContacts(); } }, [load, loadApps, loadContacts, hasWorkspace, folderName]);
   useEffect(() => {
     if (prelinkedAppId) setSearchParams({}, { replace: true });
-  }, []);
-
-  async function handleSync() {
-    if (!isGmailConnected()) {
-      try { await connectGmail(); } catch { return; }
-    }
-    // One-time reset: clear emails that were incorrectly skipped due to rate limiting
-    if (!localStorage.getItem("linkedout_skipped_v2")) {
-      await clearSkippedCache();
-      localStorage.setItem("linkedout_skipped_v2", "1");
-    }
-    setSyncing(true);
-    setSyncMsg("");
-    const r = await syncInboundEmails((msg) => setSyncMsg(msg));
-    const parts = [];
-    if (r.added) parts.push(`${r.added} email${r.added > 1 ? "s" : ""}`);
-    if (r.created) parts.push(`${r.created} app${r.created > 1 ? "s" : ""} created`);
-    if (r.linked) parts.push(`${r.linked} linked`);
-    if (r.updated) parts.push(`${r.updated} stage${r.updated > 1 ? "s" : ""} updated`);
-    setSyncMsg(parts.length ? parts.join(", ") : "No new emails");
-    setSyncing(false);
-    setTimeout(() => setSyncMsg(""), 5000);
-  }
+  }, [prelinkedAppId, setSearchParams]);
 
   if (!hasWorkspace) {
     return (
@@ -171,73 +148,6 @@ export default function ColdEmails() {
   );
 }
 
-function EmailReadModal({ email, onClose, updateEmail }) {
-  const [body, setBody] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!email) { setLoading(false); return; }
-    if (email.body) {
-      setBody({ html: email.body });
-      setLoading(false);
-      return;
-    }
-    if (!email.gmailId) { setLoading(false); return; }
-    setLoading(true);
-    getEmailBody(email.gmailId).then((data) => {
-      setBody(data);
-      if (data && updateEmail) {
-        const content = data.html || data.text || "";
-        updateEmail(email.id, { body: content });
-      }
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [email?.id]);
-
-  if (!email) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="bg-base-800 border border-base-600 rounded-lg w-full max-w-3xl max-h-[85vh] flex flex-col mx-4" onClick={(ev) => ev.stopPropagation()}>
-        <div className="flex items-start justify-between px-5 py-4 border-b border-base-600">
-          <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-base truncate">{email.subject || "(no subject)"}</h3>
-            <div className="text-xs text-base-400 mt-1">
-              <span>From: {email.recipientEmail}</span>
-              {email.sentAt && <span className="ml-3">{format(parseISO(email.sentAt), "MMM d, yyyy 'at' h:mm a")}</span>}
-            </div>
-          </div>
-          <button onClick={onClose} className="text-base-400 hover:text-base-100 ml-3 mt-0.5">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          {loading ? (
-            <div className="text-center text-base-400 py-8">Loading email...</div>
-          ) : body?.html ? (
-            <iframe
-              srcDoc={body.html}
-              className="w-full border-0 rounded bg-white"
-              style={{ minHeight: "400px" }}
-              sandbox="allow-same-origin"
-              onLoad={(ev) => {
-                const doc = ev.target.contentDocument;
-                if (doc) ev.target.style.height = doc.documentElement.scrollHeight + "px";
-              }}
-            />
-          ) : body?.text ? (
-            <pre className="whitespace-pre-wrap text-sm text-base-200 font-sans">{body.text}</pre>
-          ) : (
-            <div className="text-center text-base-400 py-8">
-              {isGmailConnected() ? "Could not load email body." : "Connect Gmail to read emails."}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function EmailTracker({ emails, updateEmail, deleteEmail, apps = [] }) {
   const [readingEmail, setReadingEmail] = useState(null);
 
@@ -333,7 +243,7 @@ function EmailTracker({ emails, updateEmail, deleteEmail, apps = [] }) {
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                       )}
-                      <button onClick={(ev) => { ev.stopPropagation(); deleteEmail(e.id); }} className="text-base-400 hover:text-[#DC2626]" title="Delete">
+                      <button onClick={(ev) => { ev.stopPropagation(); if (window.confirm("Delete this email?")) deleteEmail(e.id); }} className="text-base-400 hover:text-[#DC2626]" title="Delete" aria-label="Delete email">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -363,10 +273,10 @@ function TemplateList({ templates, onEdit, onDelete }) {
           <div className="flex items-start justify-between mb-2">
             <h3 className="font-medium text-sm">{t.name}</h3>
             <div className="flex gap-2">
-              <button onClick={() => onEdit(t)} className="text-base-400 hover:text-accent">
+              <button onClick={() => onEdit(t)} className="text-base-400 hover:text-accent" aria-label="Edit template">
                 <Edit3 className="w-3.5 h-3.5" />
               </button>
-              <button onClick={() => onDelete(t.id)} className="text-base-400 hover:text-[#DC2626]">
+              <button onClick={() => { if (window.confirm("Delete this template?")) onDelete(t.id); }} className="text-base-400 hover:text-[#DC2626]" aria-label="Delete template">
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -591,6 +501,17 @@ function TemplateFormModal({ template, onSave, onClose }) {
   const [form, setForm] = useState(
     template || { name: "", subject: "", body: "" }
   );
+  const modalRef = useRef(null);
+
+  useEffect(() => {
+    const handleKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  useEffect(() => {
+    if (modalRef.current) modalRef.current.focus();
+  }, []);
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -600,11 +521,11 @@ function TemplateFormModal({ template, onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/20 flex items-center justify-center p-4 z-50" onClick={onClose}>
-      <div className="bg-base-900 border border-base-600 rounded-xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-label="Email template" tabIndex={-1} className="bg-base-900 border border-base-600 rounded-xl w-full max-w-lg outline-none" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-base-600">
           <h2 className="text-sm font-semibold font-mono">{template ? "edit_template" : "new_template"}</h2>
-          <button onClick={onClose} className="text-base-400 hover:text-base-100">
-            <span className="sr-only">Close</span>✕
+          <button onClick={onClose} className="text-base-400 hover:text-base-100" aria-label="Close">
+            <span className="sr-only">Close</span>&#x2715;
           </button>
         </div>
         <form onSubmit={handleSubmit} className="px-5 py-4 space-y-3">

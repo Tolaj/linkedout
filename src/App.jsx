@@ -8,11 +8,18 @@ import Privacy from "./pages/Privacy";
 import Support from "./pages/Support";
 import useAuthStore from "./stores/useAuthStore";
 import { restoreRootDirectory } from "./services/fileSystem";
+import Toast from "./components/Toast";
 
 function lazyRetry(fn) {
   return lazy(() => fn().catch(() => {
-    window.location.reload();
-    return new Promise(() => {});
+    const key = "chunk_retry";
+    if (!sessionStorage.getItem(key)) {
+      sessionStorage.setItem(key, "1");
+      window.location.reload();
+      return new Promise(() => {});
+    }
+    sessionStorage.removeItem(key);
+    throw new Error("Failed to load page after retry");
   }));
 }
 
@@ -80,6 +87,7 @@ export default function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
+          <Toast />
           <Routes>
             <Route path="/" element={<GuestRoute><Landing /></GuestRoute>} />
             <Route path="/privacy" element={<Privacy />} />

@@ -31,6 +31,7 @@ export default function AppCard({ app, color, onOpen }) {
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
             className="text-base-400 hover:text-accent flex-shrink-0"
+            aria-label="Open job posting"
           >
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
@@ -63,6 +64,7 @@ export default function AppCard({ app, color, onOpen }) {
           <button
             key={col}
             title={col}
+            aria-label={`Move to ${col}`}
             onClick={(e) => handleBarClick(e, col, i)}
             className={`h-2 flex-1 rounded-full transition-all ${
               i <= stageIdx ? color.dot : "bg-base-600"

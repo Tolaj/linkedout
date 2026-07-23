@@ -3,6 +3,7 @@ import { api } from "../services/api";
 import { uid } from "../lib/constants";
 import { isFileSystemSupported, hasRootDirectory, saveFile, readFile, listFiles, deleteDirectory } from "../services/fileSystem";
 import useEmailStore from "./useEmailStore";
+import useToastStore from "./useToastStore";
 
 function getWorkspace() {
   return localStorage.getItem("linkedout_folder") || "";
@@ -61,6 +62,7 @@ const useAppStore = create((set, get) => ({
       set({ apps: filtered, loaded: true });
     } catch {
       if (!get().loaded) set({ loaded: true });
+      useToastStore.getState().addToast("Failed to load applications");
     }
   },
 
@@ -69,8 +71,9 @@ const useAppStore = create((set, get) => ({
     const currentApps = get().apps;
     const appNumber = currentApps.length + 1;
     const app = { ...data, id: uid(), workspace, createdAt: new Date().toISOString() };
+    const prev = get().apps;
     set({ apps: [app, ...currentApps] });
-    try { await api.create("applications", app); } catch (e) { console.error("Failed to save application:", e.message); }
+    try { await api.create("applications", app); } catch (e) { set({ apps: prev }); useToastStore.getState().addToast("Failed to save application"); }
     createAppFolder(app, appNumber).catch(() => {});
     return app;
   },
@@ -78,15 +81,17 @@ const useAppStore = create((set, get) => ({
   updateApp: async (id, data) => {
     const existing = get().apps.find((a) => a.id === id);
     if (!existing) return;
+    const prev = get().apps;
     const updated = { ...existing, ...data, id, updatedAt: new Date().toISOString() };
     set({ apps: get().apps.map((a) => (a.id === id ? updated : a)) });
-    try { await api.update("applications", id, updated); } catch (e) { console.error("Failed to update application:", e.message); }
+    try { await api.update("applications", id, updated); } catch (e) { set({ apps: prev }); useToastStore.getState().addToast("Failed to save application"); }
   },
 
   deleteApp: async (id) => {
     const app = get().apps.find((a) => a.id === id);
+    const prev = get().apps;
     set({ apps: get().apps.filter((a) => a.id !== id) });
-    try { await api.remove("applications", id); } catch (e) { console.error("Failed to delete application:", e.message); }
+    try { await api.remove("applications", id); } catch (e) { set({ apps: prev }); useToastStore.getState().addToast("Failed to delete application"); return; }
     const emailStore = useEmailStore.getState();
     const linked = emailStore.emails.filter((e) => e.appId === id);
     for (const e of linked) {
@@ -105,9 +110,10 @@ const useAppStore = create((set, get) => ({
   moveStage: async (id, newStatus) => {
     const app = get().apps.find((a) => a.id === id);
     if (!app) return;
+    const prev = get().apps;
     const updated = { ...app, status: newStatus, updatedAt: new Date().toISOString() };
     set({ apps: get().apps.map((a) => (a.id === id ? updated : a)) });
-    try { await api.update("applications", id, updated); } catch (e) { console.error("Failed to update stage:", e.message); }
+    try { await api.update("applications", id, updated); } catch (e) { set({ apps: prev }); useToastStore.getState().addToast("Failed to save application"); }
   },
 }));
 
