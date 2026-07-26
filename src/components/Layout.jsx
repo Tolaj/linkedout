@@ -93,7 +93,7 @@ export default function Layout() {
             </a>
 
             {/* Search bar */}
-            <div className="relative hidden md:block">
+            <div className="relative lg:ml-6 hidden md:block">
               <input
                 type="text"
                 value={searchQuery}
