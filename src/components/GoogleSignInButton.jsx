@@ -7,9 +7,27 @@ export default function GoogleSignInButton() {
   const googleLogin = useAuthStore((s) => s.googleLogin);
   const containerRef = useRef(null);
   const [error, setError] = useState("");
+  const [ready, setReady] = useState(!!window.google?.accounts?.id);
 
   useEffect(() => {
-    if (!CLIENT_ID || !window.google?.accounts?.id) return;
+    if (!CLIENT_ID) return;
+    if (window.google?.accounts?.id) {
+      setReady(true);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      if (window.google?.accounts?.id) {
+        setReady(true);
+        clearInterval(interval);
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (!CLIENT_ID || !ready || !containerRef.current) return;
 
     window.google.accounts.id.initialize({
       client_id: CLIENT_ID,
@@ -30,7 +48,7 @@ export default function GoogleSignInButton() {
       width: containerRef.current?.offsetWidth,
       text: "continue_with",
     });
-  }, [googleLogin]);
+  }, [ready, googleLogin]);
 
   if (!CLIENT_ID) return null;
 
