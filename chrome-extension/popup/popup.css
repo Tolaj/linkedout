@@ -268,3 +268,56 @@ body {
   border-top: 1px solid #333;
   margin: 12px 0;
 }
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+}
+.divider::before, .divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #404040;
+}
+.divider span {
+  font-size: 11px;
+  color: #737373;
+  text-transform: uppercase;
+}
+
+.btn-google {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #262626;
+  color: #E5E5E5;
+  border: 1px solid #525252;
+  padding: 9px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  margin-bottom: 4px;
+}
+.btn-google:hover { background: #404040; }
+.btn-google:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #525252;
+  border-top-color: #E5E5E5;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

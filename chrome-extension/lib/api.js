@@ -47,6 +47,26 @@ LinkedOut.API = {
     return data.user;
   },
 
+  async googleLogin(credential) {
+    const { apiUrl } = await this._getConfig();
+    if (!apiUrl) throw new Error("API URL not configured.");
+    const res = await fetch(apiUrl + "/auth/google", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credential }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Google login failed");
+    }
+    const data = await res.json();
+    await chrome.storage.local.set({
+      linkedout_token: data.token,
+      linkedout_user: data.user,
+    });
+    return data.user;
+  },
+
   async signup(name, email, password) {
     const { apiUrl } = await this._getConfig();
     if (!apiUrl) throw new Error("API URL not configured. Set it in the extension popup.");

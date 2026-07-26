@@ -30,4 +30,6 @@ LinkedOut.uid = function () {
   return crypto.randomUUID().replace(/-/g, "").slice(0, 16);
 };
 
+LinkedOut.GOOGLE_CLIENT_ID = "441735946847-vn32ru30nfei3tf8pjm3idu2h9bu1h2h.apps.googleusercontent.com";
+
 LinkedOut.extractors = [];
