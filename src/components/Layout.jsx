@@ -49,19 +49,28 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-base-800 text-base-100 font-sans">
-      {/* Fixed header - matches Windcraft: outer has mx-6 pt-6, inner has border-y */}
+      {/* Fixed header */}
       <div className="fixed bg-base-900 px-3 py-1 top-0 inset-x-0 z-20 pt-6 mx-6">
         <div className="flex justify-between bg-base-900 border-y border-base-500 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center py-2 gap-4">
-            {/* Toggle + Logo */}
-            {/* Logo + toggle: when sidebar open, this container spans sidebar width so toggle aligns with sidebar edge */}
-            <div className={`flex items-center gap-4 ${sidebarOpen ? "lg:w-[220px]" : ""}`}>
-              {/* Sidebar toggle - desktop */}
+            {/* Mobile menu toggle */}
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="lg:hidden flex justify-center items-center size-8 border border-base-400 rounded-xl text-base-200 hover:text-base-100 focus:outline-none transition-colors"
+              aria-label="Toggle menu"
+            >
+              <Menu className="shrink-0 size-4" />
+            </button>
+            {/* Logo + toggle container: toggle pushed to right edge via flex + spacer when open, before logo when closed */}
+            <div className={`hidden lg:flex items-center px-4  gap-10  transition-all duration-300 ease-in-out  w-[220px]`}>
+              <a href="/" className={`flex items-center  gap-2  ${sidebarOpen ? "order-first" : "order-2"}`}>
+                <Logo size={28} />
+                <span className="font-mono font-bold text-lg">linkedout</span>
+              </a>
+
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className={`hidden lg:flex justify-center items-center size-8 border border-base-400 rounded-xl text-base-200 hover:text-base-100 focus:outline-none transition-colors ${
-                  sidebarOpen ? "order-2 ml-auto" : "order-first"
-                }`}
+                className={`shrink-0 flex justify-center items-center size-8 border border-base-400 rounded-xl text-base-200 hover:text-base-100 focus:outline-none transition-colors ${sidebarOpen ? "order-2" : "order-first"}`}
                 aria-label="Toggle sidebar"
               >
                 <svg className="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -70,20 +79,12 @@ export default function Layout() {
                   <path d="m8 9 3 3-3 3" />
                 </svg>
               </button>
-              {/* Mobile menu toggle */}
-              <button
-                onClick={() => setMobileOpen(true)}
-                className="lg:hidden flex justify-center items-center size-8 border border-base-400 rounded-xl text-base-200 hover:text-base-100 focus:outline-none transition-colors"
-                aria-label="Toggle menu"
-              >
-                <Menu className="shrink-0 size-4" />
-              </button>
-              {/* Logo */}
-              <a href="/" className="flex items-center gap-2 order-1">
-                <Logo size={28} />
-                <span className="font-mono font-bold text-lg hidden sm:block">linkedout</span>
-              </a>
             </div>
+            {/* Logo for small screens */}
+            <a href="/" className="lg:hidden flex items-center gap-2">
+              <Logo size={28} />
+              <span className="font-mono font-bold text-lg hidden sm:block">linkedout</span>
+            </a>
 
             {/* Breadcrumb */}
             <ol className="ms-3 py-[7px] hidden md:flex items-center whitespace-nowrap">
@@ -160,10 +161,9 @@ export default function Layout() {
                   end={to === "/dashboard"}
                   onClick={() => setMobileOpen(false)}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                      isActive
-                        ? "bg-accent text-accent-dark font-semibold"
-                        : "text-base-300 hover:bg-base-700"
+                    `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${isActive
+                      ? "bg-accent text-accent-dark font-semibold"
+                      : "text-base-300 hover:bg-base-700"
                     }`
                   }
                 >
