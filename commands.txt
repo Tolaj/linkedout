@@ -1,3 +1,4 @@
 Extension package:  
-cd /Users/swapnil/Documents/Projects/linkedout/chrome-extension
-zip -r ../public/linkedout-extension.zip . -x ".*" -x "__MACOSX/*"
+
+
+rm -f /Users/swapnil/Documents/Projects/linkedout/public/linkedout-extension.zip && (cd /Users/swapnil/Documents/Projects/linkedout/chrome-extension && zip -r ../public/linkedout-extension.zip . -x ".*" -x "__MACOSX/*")
