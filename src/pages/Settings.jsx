@@ -167,7 +167,7 @@ export default function Settings() {
       )}
 
       {/* Gmail */}
-      <Section icon={() => <GmailLogo size={16} />} title="Gmail Integration">
+      <Section icon={Mail} title="Gmail Integration">
         <div className="space-y-3">
           {isGoogleUser ? (
             <>
@@ -188,7 +188,7 @@ export default function Settings() {
                   </>
                 ) : (
                   <button onClick={handleConnectGmail} className="flex items-center gap-2 bg-accent text-accent-dark text-sm font-medium px-5 py-2.5 rounded-md hover:bg-accent-light transition-colors">
-                    <Mail className="w-4 h-4" />
+                    <span className="w-5 h-5 bg-white rounded flex items-center justify-center"><GmailLogo size={14} /></span>
                     Enable Gmail
                   </button>
                 )}

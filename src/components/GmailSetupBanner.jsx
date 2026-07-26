@@ -45,7 +45,7 @@ export default function GmailSetupBanner({ onConnected }) {
 
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
-      <GmailLogo size={40} className="mb-4" />
+      <Mail className="w-10 h-10 text-base-500 mb-4" />
       <h2 className="text-base font-medium mb-1">
         {isGoogleUser ? "Enable Gmail" : isGmailConfigured() ? "Connect Gmail" : "Set up Gmail"}
       </h2>
@@ -79,7 +79,7 @@ export default function GmailSetupBanner({ onConnected }) {
         disabled={connecting || (needsCredentials && (!clientId.trim() || !clientSecret.trim()))}
         className="flex items-center gap-2 bg-accent text-accent-dark text-sm font-medium px-5 py-2.5 rounded-md hover:bg-accent-light transition-colors disabled:opacity-50"
       >
-        <Mail className="w-4 h-4" />
+        <span className="w-5 h-5 bg-white rounded flex items-center justify-center"><GmailLogo size={14} /></span>
         {connecting ? "Connecting..." : isGoogleUser ? "Enable Gmail" : isGmailConfigured() ? "Connect Gmail" : "Save & Connect"}
       </button>
     </div>
