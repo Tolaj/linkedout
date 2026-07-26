@@ -54,12 +54,13 @@ export default function Layout() {
         <div className="flex justify-between bg-base-900 border-y border-base-500 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center py-2 gap-4">
             {/* Toggle + Logo */}
-            <div id="toggleLogoContainer" className="flex items-center gap-4">
+            {/* Logo + toggle: when sidebar open, this container spans sidebar width so toggle aligns with sidebar edge */}
+            <div className={`flex items-center gap-4 ${sidebarOpen ? "lg:w-[220px]" : ""}`}>
               {/* Sidebar toggle - desktop */}
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 className={`hidden lg:flex justify-center items-center size-8 border border-base-400 rounded-xl text-base-200 hover:text-base-100 focus:outline-none transition-colors ${
-                  sidebarOpen ? "order-2" : "order-first"
+                  sidebarOpen ? "order-2 ml-auto" : "order-first"
                 }`}
                 aria-label="Toggle sidebar"
               >
