@@ -13,7 +13,7 @@ export default function Resumes() {
   const [showUpload, setShowUpload] = useState(false);
   const folderName = useSettingsStore((s) => s.folderName);
   const hasWorkspace = !!folderName;
-  const { setHeaderActions } = useOutletContext();
+  const { searchQuery, setHeaderActions } = useOutletContext();
 
   useEffect(() => { if (hasWorkspace) load(); }, [load, hasWorkspace, folderName]);
 
@@ -77,7 +77,12 @@ export default function Resumes() {
     return `${(bytes / 1048576).toFixed(1)} MB`;
   }
 
-  const allResumes = [...resumes].sort((a, b) => a.archetype.localeCompare(b.archetype) || b.version - a.version);
+  const allResumes = [...resumes].sort((a, b) => a.archetype.localeCompare(b.archetype) || b.version - a.version)
+    .filter((r) => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (r.archetype || "").toLowerCase().includes(q) || (r.fileName || "").toLowerCase().includes(q) || (r.notes || "").toLowerCase().includes(q);
+    });
 
   const trackedFileNames = new Set(resumes.map((r) => r.fileName));
   const untrackedFiles = folderFiles.filter((f) => f.kind === "file" && !trackedFileNames.has(f.name));

@@ -19,7 +19,7 @@ export default function InterviewPrep() {
 
   const folderName = useSettingsStore((s) => s.folderName);
   const hasWorkspace = !!folderName;
-  const { setHeaderActions } = useOutletContext();
+  const { searchQuery, setHeaderActions } = useOutletContext();
 
   useEffect(() => {
     if (hasWorkspace) load();
@@ -38,7 +38,12 @@ export default function InterviewPrep() {
     return () => setHeaderActions(null);
   }, [setHeaderActions]);
 
-  const notes = allNotes.filter((n) => n.section !== "application");
+  const notes = allNotes.filter((n) => {
+    if (n.section === "application") return false;
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (n.title || "").toLowerCase().includes(q) || (n.body || "").toLowerCase().includes(q);
+  });
 
   function selectNote(note) {
     setSelected(note);

@@ -27,7 +27,7 @@ export default function ColdEmails() {
   const { syncing, syncMsg, handleSync } = useEmailSync();
   const folderName = useSettingsStore((s) => s.folderName);
   const hasWorkspace = !!folderName;
-  const { setHeaderActions } = useOutletContext();
+  const { searchQuery, setHeaderActions } = useOutletContext();
 
   const loadApps = useAppStore((s) => s.load);
   const loadContacts = useContactStore((s) => s.load);
@@ -108,7 +108,10 @@ export default function ColdEmails() {
         ))}
       </div>
 
-      {tab === "tracker" && <EmailTracker emails={emails} updateEmail={updateEmail} deleteEmail={deleteEmail} apps={apps} />}
+      {tab === "tracker" && <EmailTracker emails={searchQuery ? emails.filter((e) => {
+        const q = searchQuery.toLowerCase();
+        return (e.subject || "").toLowerCase().includes(q) || (e.recipientEmail || "").toLowerCase().includes(q) || (e.company || "").toLowerCase().includes(q);
+      }) : emails} updateEmail={updateEmail} deleteEmail={deleteEmail} apps={apps} />}
       {tab === "templates" && (
         <TemplateList
           templates={templates}

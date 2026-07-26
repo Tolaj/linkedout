@@ -37,7 +37,7 @@ export default function Applications() {
   const { syncing, syncMsg, setSyncMsg, handleSync } = useEmailSync();
   const folderName = useSettingsStore((s) => s.folderName);
   const hasWorkspace = !!folderName;
-  const { setHeaderActions } = useOutletContext();
+  const { searchQuery, setHeaderActions } = useOutletContext();
 
   useEffect(() => {
     if (hasWorkspace) { load(); loadEmails(); loadContacts(); loadNotes(); }
@@ -82,7 +82,12 @@ export default function Applications() {
     }
   }, [loaded]);
 
-  const activeApps = apps.filter((a) => a.status !== "Wishlist");
+  const activeApps = apps.filter((a) => {
+    if (a.status === "Wishlist") return false;
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (a.company || "").toLowerCase().includes(q) || (a.role || "").toLowerCase().includes(q) || (a.location || "").toLowerCase().includes(q);
+  });
 
   function toggleExpand(id) {
     setExpandedId((prev) => (prev === id ? null : id));
