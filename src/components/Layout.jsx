@@ -14,7 +14,7 @@ const NAV = [
   { to: "/applications", icon: FolderOpen, label: "Applications" },
   { to: "/quick-apply", icon: Zap, label: "Quick Apply" },
   { to: "/prep", icon: BookOpen, label: "Interview Prep" },
-  { to: "/settings", icon: Settings, label: "Settings" },
+  // { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
 const SEARCH_PLACEHOLDERS = {
@@ -24,7 +24,7 @@ const SEARCH_PLACEHOLDERS = {
   "/applications": "Search applications...",
   "/quick-apply": "Search...",
   "/prep": "Search notes...",
-  "/settings": "Search settings...",
+  // "/settings": "Search settings...",
 };
 
 export default function Layout() {
