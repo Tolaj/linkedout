@@ -22,9 +22,7 @@ const SEARCH_PLACEHOLDERS = {
   "/emails": "Search emails...",
   "/resumes": "Search resumes...",
   "/applications": "Search applications...",
-  "/quick-apply": "Search...",
   "/prep": "Search notes...",
-  // "/settings": "Search settings...",
 };
 
 export default function Layout() {
@@ -35,7 +33,8 @@ export default function Layout() {
   const location = useLocation();
   const menuRef = useRef(null);
 
-  const searchPlaceholder = SEARCH_PLACEHOLDERS[location.pathname] || "Search...";
+  const searchPlaceholder = SEARCH_PLACEHOLDERS[location.pathname];
+  const showSearch = !!searchPlaceholder;
   const [searchQuery, setSearchQuery] = useState("");
   const [headerActions, setHeaderActions] = useState(null);
 
@@ -93,18 +92,20 @@ export default function Layout() {
             </a>
 
             {/* Search bar */}
-            <div className="relative lg:ml-6 hidden md:block">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={searchPlaceholder}
-                className="w-64 px-4 py-1.5 text-sm border border-base-400 rounded-lg bg-transparent focus:outline-none focus:border-accent"
-              />
-              <svg className="absolute right-3 top-2 size-4 text-base-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-              </svg>
-            </div>
+            {showSearch && (
+              <div className="relative lg:ml-6 hidden md:block">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="w-64 px-4 py-1.5 text-sm border border-base-400 rounded-lg bg-transparent focus:outline-none focus:border-accent"
+                />
+                <svg className="absolute right-3 top-2 size-4 text-base-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                </svg>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center py-2 gap-3">
@@ -154,10 +155,10 @@ export default function Layout() {
       )}
 
       {/* Body: sidebar + main, below fixed header */}
-      <div className="flex mt-20 m-4 overflow-hidden min-h-screen">
+      <div className="flex mt-20 m-4 h-[calc(100vh-6rem)] overflow-hidden">
         {/* Sidebar */}
         <aside
-          className={`bg-base-900 border-r border-base-600 min-h-screen overflow-y-auto transition-all duration-300 ease-in-out
+          className={`bg-base-900 border-r border-base-600 h-full overflow-y-auto transition-all duration-300 ease-in-out shrink-0
             fixed lg:static inset-y-0 left-0 z-40 lg:z-0 w-64
             ${mobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0
             ${sidebarOpen ? "lg:w-64" : "lg:w-0 lg:min-w-0 lg:overflow-hidden lg:border-r-0"}`}
