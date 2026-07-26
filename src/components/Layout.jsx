@@ -54,7 +54,7 @@ export default function Layout() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-base-800 text-base-100 font-sans">
+    <div className="min-h-screen bg-base-900 flow-root text-base-100 font-sans">
       {/* Fixed header */}
       <div className="fixed bg-base-900 px-3 py-1 top-0 inset-x-0 z-20 pt-6 mx-6">
         <div className="flex justify-between bg-base-900 border-y border-base-500 px-4 sm:px-6 lg:px-8">
