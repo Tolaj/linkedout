@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useOutletContext } from "react-router-dom";
 import { Plus, Send, FileText, Clock, Mail, Trash2, Edit3, Eye, MailCheck, RefreshCw, ArrowUpRight, ArrowDownLeft, X } from "lucide-react";
 import NoWorkspace from "../components/NoWorkspace";
 import GmailSetupBanner from "../components/GmailSetupBanner";
@@ -27,6 +27,7 @@ export default function ColdEmails() {
   const { syncing, syncMsg, handleSync } = useEmailSync();
   const folderName = useSettingsStore((s) => s.folderName);
   const hasWorkspace = !!folderName;
+  const { setHeaderActions } = useOutletContext();
 
   const loadApps = useAppStore((s) => s.load);
   const loadContacts = useContactStore((s) => s.load);
@@ -34,6 +35,32 @@ export default function ColdEmails() {
   useEffect(() => {
     if (prelinkedAppId) setSearchParams({}, { replace: true });
   }, [prelinkedAppId, setSearchParams]);
+
+  const handleSyncRef = useRef(handleSync);
+  handleSyncRef.current = handleSync;
+
+  useEffect(() => {
+    setHeaderActions(
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => handleSyncRef.current()}
+          className="h-8 px-3 text-sm flex justify-center items-center gap-x-2 border border-base-400 rounded-xl hover:bg-accent hover:text-accent-dark hover:shadow-xl focus:outline-hidden transition-all"
+          title="Sync incoming emails from Gmail"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Sync
+        </button>
+        <button
+          onClick={() => { setTab("compose"); setShowComposer(true); }}
+          className="h-8 px-3 text-sm flex justify-center items-center gap-x-2 border border-base-400 rounded-xl hover:bg-accent hover:text-accent-dark hover:shadow-xl focus:outline-hidden transition-all"
+        >
+          <Send className="w-4 h-4" />
+          Compose
+        </button>
+      </div>
+    );
+    return () => setHeaderActions(null);
+  }, [setHeaderActions]);
 
   if (!hasWorkspace) {
     return (
@@ -61,41 +88,9 @@ export default function ColdEmails() {
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-        <div>
-          <h1 className="text-xl font-semibold font-mono mb-1">emails</h1>
-          <p className="text-sm text-base-300">Templates, tracking, and Gmail-powered sends.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {syncMsg && <span className="text-xs text-green-400">{syncMsg}</span>}
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="flex items-center gap-2 bg-base-600 text-base-100 text-sm px-4 py-2.5 rounded-md hover:bg-base-500 transition-colors disabled:opacity-50"
-            title="Sync incoming emails from Gmail"
-          >
-            <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-            Sync
-          </button>
-          {tab === "tracker" && (
-            <button
-              onClick={() => { setTab("compose"); setShowComposer(true); }}
-              className="flex items-center gap-2 bg-accent text-accent-dark font-medium text-sm px-4 py-2.5 rounded-md hover:bg-accent-light transition-colors"
-            >
-              <Send className="w-4 h-4" />
-              Compose
-            </button>
-          )}
-          {tab === "templates" && (
-            <button
-              onClick={() => { setEditTemplate(null); setShowTemplateForm(true); }}
-              className="flex items-center gap-2 bg-accent text-accent-dark font-medium text-sm px-4 py-2.5 rounded-md hover:bg-accent-light transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              New template
-            </button>
-          )}
-        </div>
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold font-mono mb-1">emails</h1>
+        <p className="text-sm text-base-300">Templates, tracking, and Gmail-powered sends.</p>
       </div>
 
       {/* Tabs */}

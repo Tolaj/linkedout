@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Search, Loader2 } from "lucide-react";
+import { useOutletContext } from "react-router-dom";
+import { Plus, Loader2 } from "lucide-react";
 import useAppStore from "../stores/useAppStore";
 import NoWorkspace from "../components/NoWorkspace";
 import { KANBAN_COLUMNS, CLOSED_STATUSES, STAGE_COLOR } from "../lib/constants";
@@ -10,13 +11,26 @@ import useSettingsStore from "../stores/useSettingsStore";
 
 export default function Dashboard() {
   const { apps, loaded, load } = useAppStore();
-  const [query, setQuery] = useState("");
+  const { searchQuery: query, setHeaderActions } = useOutletContext();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingApp, setEditingApp] = useState(null);
   const folderName = useSettingsStore((s) => s.folderName);
   const hasWorkspace = !!folderName;
 
   useEffect(() => { if (hasWorkspace) load(); }, [load, hasWorkspace, folderName]);
+
+  useEffect(() => {
+    setHeaderActions(
+      <button
+        onClick={() => { setEditingApp(null); setModalOpen(true); }}
+        className="h-8 px-3 text-sm flex justify-center items-center gap-x-2 border border-base-400 rounded-xl hover:bg-accent hover:text-accent-dark hover:shadow-xl focus:outline-hidden transition-all"
+      >
+        <Plus className="w-4 h-4" strokeWidth={2.5} />
+        Log application
+      </button>
+    );
+    return () => setHeaderActions(null);
+  }, [setHeaderActions]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -80,18 +94,9 @@ export default function Dashboard() {
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
-        <div>
-          <h1 className="text-xl font-semibold font-mono mb-1">job_pipeline</h1>
-          <p className="text-sm text-base-300">Track every application like a build — from queued to shipped.</p>
-        </div>
-        <button
-          onClick={() => { setEditingApp(null); setModalOpen(true); }}
-          className="flex items-center gap-2 bg-accent text-accent-dark font-medium text-sm px-4 py-2.5 rounded-md hover:bg-accent-light transition-colors"
-        >
-          <Plus className="w-4 h-4" strokeWidth={2.5} />
-          Log application
-        </button>
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold font-mono mb-1">job_pipeline</h1>
+        <p className="text-sm text-base-300">Track every application like a build — from queued to shipped.</p>
       </div>
 
       {apps.length > 0 && (
@@ -110,17 +115,6 @@ export default function Dashboard() {
           ))}
         </div>
       )}
-
-      {/* Search */}
-      <div className="relative mb-5 max-w-xs">
-        <Search className="w-4 h-4 text-base-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search company or role"
-          className="input w-full !pl-10"
-        />
-      </div>
 
       {apps.length === 0 ? (
         <div className="text-center py-16 text-base-400 text-sm">

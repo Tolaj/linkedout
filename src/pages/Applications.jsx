@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useOutletContext } from "react-router-dom";
 import { Upload, FileText, Trash2, Edit3, ExternalLink, ChevronDown, ChevronRight, Plus, Send, ArrowUpRight, ArrowDownLeft, Users, RefreshCw, Eye, X } from "lucide-react";
 import NoWorkspace from "../components/NoWorkspace";
 import useAppStore from "../stores/useAppStore";
@@ -36,10 +37,37 @@ export default function Applications() {
   const { syncing, syncMsg, setSyncMsg, handleSync } = useEmailSync();
   const folderName = useSettingsStore((s) => s.folderName);
   const hasWorkspace = !!folderName;
+  const { setHeaderActions } = useOutletContext();
 
   useEffect(() => {
     if (hasWorkspace) { load(); loadEmails(); loadContacts(); loadNotes(); }
   }, [load, loadEmails, loadContacts, loadNotes, hasWorkspace, folderName]);
+
+  const handleSyncRef = useRef(handleSync);
+  handleSyncRef.current = handleSync;
+
+  useEffect(() => {
+    setHeaderActions(
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => handleSyncRef.current()}
+          className="h-8 px-3 text-sm flex justify-center items-center gap-x-2 border border-base-400 rounded-xl hover:bg-accent hover:text-accent-dark hover:shadow-xl focus:outline-hidden transition-all"
+          title="Sync incoming emails from Gmail"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Sync
+        </button>
+        <button
+          onClick={() => { setEditingApp(null); setModalOpen(true); }}
+          className="h-8 px-3 text-sm flex justify-center items-center gap-x-2 border border-base-400 rounded-xl hover:bg-accent hover:text-accent-dark hover:shadow-xl focus:outline-hidden transition-all"
+        >
+          <Plus className="w-4 h-4" strokeWidth={2.5} />
+          Log application
+        </button>
+      </div>
+    );
+    return () => setHeaderActions(null);
+  }, [setHeaderActions]);
 
   useEffect(() => {
     if (loaded && isGmailConnected()) {
@@ -85,34 +113,9 @@ export default function Applications() {
       {readingEmail && (
         <EmailReadModal email={readingEmail} onClose={() => setReadingEmail(null)} updateEmail={updateEmail} />
       )}
-      <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
-        <div>
-          <h1 className="text-xl font-semibold font-mono mb-1">applications</h1>
-          <p className="text-sm text-base-300">Per-company docs, JD snapshots, cover letters & notes.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {syncMsg && (
-            <span className="text-xs text-green-400">{syncMsg}</span>
-          )}
-          {isGmailConnected() && (
-            <button
-              onClick={handleSync}
-              disabled={syncing}
-              className="flex items-center gap-2 bg-base-600 text-base-100 text-sm px-4 py-2.5 rounded-md hover:bg-base-500 transition-colors disabled:opacity-50"
-              title="Sync incoming emails from Gmail"
-            >
-              <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-              Sync
-            </button>
-          )}
-          <button
-            onClick={() => { setEditingApp(null); setModalOpen(true); }}
-            className="flex items-center gap-2 bg-accent text-accent-dark font-medium text-sm px-4 py-2.5 rounded-md hover:bg-accent-light transition-colors"
-          >
-            <Plus className="w-4 h-4" strokeWidth={2.5} />
-            Log application
-          </button>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold font-mono mb-1">applications</h1>
+        <p className="text-sm text-base-300">Per-company docs, JD snapshots, cover letters & notes.</p>
       </div>
 
       {activeApps.length === 0 ? (

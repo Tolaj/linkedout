@@ -17,14 +17,14 @@ const NAV = [
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
-const PAGE_TITLES = {
-  "/dashboard": "Pipeline",
-  "/emails": "Emails",
-  "/resumes": "Resumes",
-  "/applications": "Applications",
-  "/quick-apply": "Quick Apply",
-  "/prep": "Interview Prep",
-  "/settings": "Settings",
+const SEARCH_PLACEHOLDERS = {
+  "/dashboard": "Search company or role...",
+  "/emails": "Search emails...",
+  "/resumes": "Search resumes...",
+  "/applications": "Search applications...",
+  "/quick-apply": "Search...",
+  "/prep": "Search notes...",
+  "/settings": "Search settings...",
 };
 
 export default function Layout() {
@@ -35,7 +35,13 @@ export default function Layout() {
   const location = useLocation();
   const menuRef = useRef(null);
 
-  const pageTitle = PAGE_TITLES[location.pathname] || "LinkedOut";
+  const searchPlaceholder = SEARCH_PLACEHOLDERS[location.pathname] || "Search...";
+  const [searchQuery, setSearchQuery] = useState("");
+  const [headerActions, setHeaderActions] = useState(null);
+
+  useEffect(() => {
+    setSearchQuery("");
+  }, [location.pathname]);
 
   useEffect(() => {
     function handleClick(e) {
@@ -86,19 +92,24 @@ export default function Layout() {
               <span className="font-mono font-bold text-lg hidden sm:block">linkedout</span>
             </a>
 
-            {/* Breadcrumb */}
-            <ol className="ms-3 py-[7px] hidden md:flex items-center whitespace-nowrap">
-              <li className="flex items-center text-sm text-base-100">
-                <span>Home</span>
-                <svg className="shrink-0 mx-3 overflow-visible size-2.5 text-base-400" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M5 1L10.6869 7.16086C10.8637 7.35239 10.8637 7.64761 10.6869 7.83914L5 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              </li>
-              <li className="text-sm font-semibold text-base-100 truncate">{pageTitle}</li>
-            </ol>
+            {/* Search bar */}
+            <div className="relative hidden md:block">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={searchPlaceholder}
+                className="w-64 px-4 py-1.5 text-sm border border-base-400 rounded-lg bg-transparent focus:outline-none focus:border-accent"
+              />
+              <svg className="absolute right-3 top-2 size-4 text-base-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+              </svg>
+            </div>
           </div>
 
           <div className="flex items-center py-2 gap-3">
+            {/* Page-specific action buttons */}
+            {headerActions}
             {/* User avatar & dropdown */}
             {user && (
               <div className="relative" ref={menuRef}>
@@ -177,7 +188,7 @@ export default function Layout() {
 
         {/* Main content */}
         <main className="flex-1 overflow-y-auto">
-          <Outlet />
+          <Outlet context={{ searchQuery, setHeaderActions }} />
         </main>
       </div>
     </div>

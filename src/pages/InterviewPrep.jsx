@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useOutletContext } from "react-router-dom";
 import { BookOpen, Plus, Save, Trash2 } from "lucide-react";
 import NoWorkspace from "../components/NoWorkspace";
 import useNoteStore from "../stores/useNoteStore";
@@ -18,10 +19,24 @@ export default function InterviewPrep() {
 
   const folderName = useSettingsStore((s) => s.folderName);
   const hasWorkspace = !!folderName;
+  const { setHeaderActions } = useOutletContext();
 
   useEffect(() => {
     if (hasWorkspace) load();
   }, [hasWorkspace, folderName, load]);
+
+  useEffect(() => {
+    setHeaderActions(
+      <button
+        onClick={() => setShowNew(true)}
+        className="h-8 px-3 text-sm flex justify-center items-center gap-x-2 border border-base-400 rounded-xl hover:bg-accent hover:text-accent-dark hover:shadow-xl focus:outline-hidden transition-all"
+      >
+        <Plus className="w-4 h-4" />
+        New note
+      </button>
+    );
+    return () => setHeaderActions(null);
+  }, [setHeaderActions]);
 
   const notes = allNotes.filter((n) => n.section !== "application");
 
@@ -78,18 +93,9 @@ export default function InterviewPrep() {
 
   return (
     <div className="p-6 h-full flex flex-col">
-      <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
-        <div>
-          <h1 className="text-xl font-semibold font-mono mb-1">interview_prep</h1>
-          <p className="text-sm text-base-300">DSA, System Design, Behavioral & company-specific notes.</p>
-        </div>
-        <button
-          onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 bg-accent text-accent-dark font-medium text-sm px-4 py-2.5 rounded-md hover:bg-accent-light transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          New note
-        </button>
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold font-mono mb-1">interview_prep</h1>
+        <p className="text-sm text-base-300">DSA, System Design, Behavioral & company-specific notes.</p>
       </div>
 
       {showNew && (

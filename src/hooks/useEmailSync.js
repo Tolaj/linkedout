@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { isGmailConnected, connectGmail } from "../services/gmail";
 import { syncInboundEmails, clearSkippedCache } from "../services/emailSync";
 
@@ -6,7 +6,7 @@ export default function useEmailSync() {
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
 
-  async function handleSync() {
+  const handleSync = useCallback(async function handleSync() {
     if (!isGmailConnected()) {
       try { await connectGmail(); } catch { return; }
     }
@@ -25,7 +25,7 @@ export default function useEmailSync() {
     setSyncMsg(parts.length ? parts.join(", ") : "No new emails");
     setSyncing(false);
     setTimeout(() => setSyncMsg(""), 5000);
-  }
+  }, []);
 
   return { syncing, syncMsg, setSyncMsg, handleSync };
 }
