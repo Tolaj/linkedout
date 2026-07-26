@@ -63,9 +63,9 @@ export default function QuickApply() {
 
   if (!hasWorkspace) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="p-6">
         <div className="mb-6">
-          <h1 className="text-xl font-semibold font-mono mb-1">quick apply</h1>
+          <h1 className="text-xl font-semibold font-mono mb-1">quick_apply</h1>
           <p className="text-sm text-base-300">Pre-store your answers. The extension auto-fills application forms.</p>
         </div>
         <NoWorkspace page="quickapply" />
@@ -74,13 +74,11 @@ export default function QuickApply() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
-        <div>
-          <h1 className="text-xl font-semibold font-mono mb-1">quick apply</h1>
-          <p className="text-sm text-base-300">Pre-store your answers. The extension auto-fills application forms.</p>
-        </div>
-        <div className="flex items-center gap-2">
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold font-mono mb-1">quick_apply</h1>
+        <p className="text-sm text-base-300">Pre-store your answers. The extension auto-fills application forms.</p>
+        <div className="flex items-center gap-2 mt-3">
           <div className="text-sm text-base-300">{filled} / {total} filled</div>
           <div className="w-24 h-2 bg-base-700 rounded-full overflow-hidden">
             <div
