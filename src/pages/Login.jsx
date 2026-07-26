@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import useAuthStore from "../stores/useAuthStore";
 import Logo from "../components/Logo";
+import GoogleSignInButton from "../components/GoogleSignInButton";
 
 export default function Login() {
   const login = useAuthStore((s) => s.login);
@@ -40,6 +41,14 @@ export default function Login() {
               {error}
             </div>
           )}
+
+          <GoogleSignInButton />
+
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-px bg-base-600" />
+            <span className="text-xs text-base-400">or</span>
+            <div className="flex-1 h-px bg-base-600" />
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

@@ -76,6 +76,18 @@ const useAuthStore = create((set, get) => ({
     get().setAuth(data.user, data.token);
   },
 
+  async googleLogin(credential) {
+    clearUserData();
+    const res = await fetch(`${API_URL}/auth/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credential }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Google login failed");
+    get().setAuth(data.user, data.token);
+  },
+
   async checkAuth() {
     const token = get().token;
     if (!token) {

@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { Mail, FolderOpen, Download, Upload, CheckCircle, AlertCircle, Info, ChevronDown, ChevronUp, Trash2, Plus, Brain, Power, BarChart3 } from "lucide-react";
+import GmailLogo from "../components/GmailLogo";
 
 import useSettingsStore from "../stores/useSettingsStore";
+import useAuthStore from "../stores/useAuthStore";
 import useAppStore from "../stores/useAppStore";
 import useResumeStore from "../stores/useResumeStore";
 import { isGmailConnected, connectGmail, disconnectGmail, initGmail, isGmailConfigured, getGmailUsage } from "../services/gmail";
@@ -11,6 +13,8 @@ import { api } from "../services/api";
 
 export default function Settings() {
   const settings = useSettingsStore();
+  const user = useAuthStore((s) => s.user);
+  const isGoogleUser = user?.isGoogleUser || !!import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const [clientIdInput, setClientIdInput] = useState(settings.googleClientId);
   const [clientSecretInput, setClientSecretInput] = useState(settings.googleClientSecret);
   const [gmailConnected, setGmailConnected] = useState(isGmailConnected());
@@ -39,7 +43,9 @@ export default function Settings() {
 
   async function handleConnectGmail() {
     try {
-      await connectGmail();
+      const hint = isGoogleUser ? user.email : undefined;
+      initGmail(hint);
+      await connectGmail(hint);
       setGmailConnected(true);
       setMessage("Gmail connected!");
     } catch (e) {
@@ -161,68 +167,97 @@ export default function Settings() {
       )}
 
       {/* Gmail */}
-      <Section icon={Mail} title="Gmail Integration">
+      <Section icon={() => <GmailLogo size={16} />} title="Gmail Integration">
         <div className="space-y-3">
-          <button
-            onClick={() => setShowGmailGuide(!showGmailGuide)}
-            className="flex items-center gap-2 text-xs text-base-300 hover:text-base-100 transition-colors w-full"
-          >
-            <Info className="w-3.5 h-3.5 text-[#2563EB]" />
-            <span>How to set up Gmail API</span>
-            {showGmailGuide ? <ChevronUp className="w-3 h-3 ml-auto" /> : <ChevronDown className="w-3 h-3 ml-auto" />}
-          </button>
-
-          {showGmailGuide && (
-            <div className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg p-4 text-xs text-base-200 space-y-3">
-              <ol className="list-decimal list-inside space-y-2 text-base-300">
-                <li>Go to <strong>Google Cloud Console</strong> → create a new project (or use existing)</li>
-                <li>Navigate to <strong>APIs & Services → Library</strong> → search & enable <strong>Gmail API</strong></li>
-                <li>Go to <strong>APIs & Services → Credentials</strong> → click <strong>Create Credentials → OAuth Client ID</strong></li>
-                <li>Choose <strong>Web application</strong>, add <code className="bg-base-700 px-1 py-0.5 rounded text-[11px]">https://linkedout.swapniljadhav.com</code> and <code className="bg-base-700 px-1 py-0.5 rounded text-[11px]">http://localhost:5173</code> to Authorized JavaScript origins</li>
-                <li>Copy the <strong>Client ID</strong> (ends with <code className="bg-base-700 px-1 py-0.5 rounded text-[11px]">.apps.googleusercontent.com</code>) and <strong>Client Secret</strong></li>
-                <li>You may also need to configure the <strong>OAuth consent screen</strong> (set to External, add your email as a test user)</li>
-              </ol>
-            </div>
-          )}
-
-          <div>
-            <label className="text-[11px] text-base-300 mb-1 block">Google OAuth Client ID</label>
-            <input
-              value={clientIdInput}
-              onChange={(e) => setClientIdInput(e.target.value)}
-              className="input"
-              placeholder="xxxx.apps.googleusercontent.com"
-            />
-          </div>
-          <div>
-            <label className="text-[11px] text-base-300 mb-1 block">Google OAuth Client Secret</label>
-            <input
-              type="password"
-              value={clientSecretInput}
-              onChange={(e) => setClientSecretInput(e.target.value)}
-              className="input"
-              placeholder="GOCSPX-..."
-            />
-          </div>
-          <div className="flex gap-2">
-            <button onClick={saveGoogleCredentials} className="bg-accent text-accent-dark text-sm font-medium px-4 py-2 rounded-md hover:bg-accent-light transition-colors">
-              Save Credentials
-            </button>
-            {isGmailConfigured() && !gmailConnected && (
-              <button onClick={handleConnectGmail} className="bg-base-600 text-base-100 text-sm px-4 py-2 rounded-md hover:bg-base-500 transition-colors">
-                Connect Gmail
+          {isGoogleUser ? (
+            <>
+              <p className="text-xs text-base-300">
+                {gmailConnected
+                  ? "Gmail is connected. You can sync and send emails."
+                  : "Enable Gmail to sync and send emails directly from LinkedOut."}
+              </p>
+              <div className="flex items-center gap-3">
+                {gmailConnected ? (
+                  <>
+                    <div className="flex items-center gap-1 text-xs text-[#16A34A]">
+                      <CheckCircle className="w-3 h-3" /> Connected
+                    </div>
+                    <button onClick={handleDisconnectGmail} className="text-sm text-[#DC2626] hover:text-[#B91C1C] px-3">
+                      Disable
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={handleConnectGmail} className="flex items-center gap-2 bg-accent text-accent-dark text-sm font-medium px-5 py-2.5 rounded-md hover:bg-accent-light transition-colors">
+                    <Mail className="w-4 h-4" />
+                    Enable Gmail
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setShowGmailGuide(!showGmailGuide)}
+                className="flex items-center gap-2 text-xs text-base-300 hover:text-base-100 transition-colors w-full"
+              >
+                <Info className="w-3.5 h-3.5 text-[#2563EB]" />
+                <span>How to set up Gmail API</span>
+                {showGmailGuide ? <ChevronUp className="w-3 h-3 ml-auto" /> : <ChevronDown className="w-3 h-3 ml-auto" />}
               </button>
-            )}
-            {gmailConnected && (
-              <button onClick={handleDisconnectGmail} className="text-sm text-[#DC2626] hover:text-[#B91C1C] px-3">
-                Disconnect
-              </button>
-            )}
-          </div>
-          {gmailConnected && (
-            <div className="flex items-center gap-1 text-xs text-[#16A34A]">
-              <CheckCircle className="w-3 h-3" /> Connected
-            </div>
+
+              {showGmailGuide && (
+                <div className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg p-4 text-xs text-base-200 space-y-3">
+                  <ol className="list-decimal list-inside space-y-2 text-base-300">
+                    <li>Go to <strong>Google Cloud Console</strong> → create a new project (or use existing)</li>
+                    <li>Navigate to <strong>APIs & Services → Library</strong> → search & enable <strong>Gmail API</strong></li>
+                    <li>Go to <strong>APIs & Services → Credentials</strong> → click <strong>Create Credentials → OAuth Client ID</strong></li>
+                    <li>Choose <strong>Web application</strong>, add <code className="bg-base-700 px-1 py-0.5 rounded text-[11px]">https://linkedout.swapniljadhav.com</code> and <code className="bg-base-700 px-1 py-0.5 rounded text-[11px]">http://localhost:5173</code> to Authorized JavaScript origins</li>
+                    <li>Copy the <strong>Client ID</strong> (ends with <code className="bg-base-700 px-1 py-0.5 rounded text-[11px]">.apps.googleusercontent.com</code>) and <strong>Client Secret</strong></li>
+                    <li>You may also need to configure the <strong>OAuth consent screen</strong> (set to External, add your email as a test user)</li>
+                  </ol>
+                </div>
+              )}
+
+              <div>
+                <label className="text-[11px] text-base-300 mb-1 block">Google OAuth Client ID</label>
+                <input
+                  value={clientIdInput}
+                  onChange={(e) => setClientIdInput(e.target.value)}
+                  className="input"
+                  placeholder="xxxx.apps.googleusercontent.com"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-base-300 mb-1 block">Google OAuth Client Secret</label>
+                <input
+                  type="password"
+                  value={clientSecretInput}
+                  onChange={(e) => setClientSecretInput(e.target.value)}
+                  className="input"
+                  placeholder="GOCSPX-..."
+                />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={saveGoogleCredentials} className="bg-accent text-accent-dark text-sm font-medium px-4 py-2 rounded-md hover:bg-accent-light transition-colors">
+                  Save Credentials
+                </button>
+                {isGmailConfigured() && !gmailConnected && (
+                  <button onClick={handleConnectGmail} className="bg-base-600 text-base-100 text-sm px-4 py-2 rounded-md hover:bg-base-500 transition-colors">
+                    Connect Gmail
+                  </button>
+                )}
+                {gmailConnected && (
+                  <button onClick={handleDisconnectGmail} className="text-sm text-[#DC2626] hover:text-[#B91C1C] px-3">
+                    Disconnect
+                  </button>
+                )}
+              </div>
+              {gmailConnected && (
+                <div className="flex items-center gap-1 text-xs text-[#16A34A]">
+                  <CheckCircle className="w-3 h-3" /> Connected
+                </div>
+              )}
+            </>
           )}
         </div>
       </Section>

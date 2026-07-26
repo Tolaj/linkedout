@@ -30,8 +30,10 @@ export function getGmailUsage() {
   } catch { return { date: new Date().toISOString().slice(0, 10), sent: 0, read: 0 }; }
 }
 
+const APP_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+
 export function getClientId() {
-  return localStorage.getItem("google_client_id") || "";
+  return localStorage.getItem("google_client_id") || APP_CLIENT_ID;
 }
 
 export function isGmailConfigured() {
@@ -42,16 +44,21 @@ export function isGmailConnected() {
   return !!accessToken;
 }
 
-export function initGmail() {
+export function initGmail(hint) {
   const clientId = getClientId();
   if (!clientId || !window.google?.accounts?.oauth2) return;
 
-  codeClient = window.google.accounts.oauth2.initCodeClient({
+  const config = {
     client_id: clientId,
     scope: SCOPES,
     ux_mode: "popup",
     callback: () => {},
-  });
+  };
+  if (hint) {
+    config.login_hint = hint;
+    config.prompt = "";
+  }
+  codeClient = window.google.accounts.oauth2.initCodeClient(config);
 }
 
 // Try to restore connection using backend refresh token
@@ -125,9 +132,9 @@ async function gmailFetch(url, options = {}) {
   return res;
 }
 
-export function connectGmail() {
+export function connectGmail(hint) {
   return new Promise((resolve, reject) => {
-    if (!codeClient) initGmail();
+    if (!codeClient) initGmail(hint);
     if (!codeClient) {
       reject(new Error("Google client not initialized. Set Client ID in Settings."));
       return;

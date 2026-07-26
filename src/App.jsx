@@ -5,6 +5,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Landing from "./pages/Landing";
 import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
 import Support from "./pages/Support";
 import useAuthStore from "./stores/useAuthStore";
 import { restoreRootDirectory } from "./services/fileSystem";
@@ -91,6 +92,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<GuestRoute><Landing /></GuestRoute>} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
             <Route path="/support" element={<Support />} />
             <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
             <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
