@@ -1,10 +1,10 @@
-import { NavLink, Outlet, Link } from "react-router-dom";
+import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Mail, FileText, FolderOpen,
   Zap, BookOpen, Settings, Menu, LogOut,
 } from "lucide-react";
 import Logo from "./Logo";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import useAuthStore from "../stores/useAuthStore";
 
 const NAV = [
@@ -17,78 +17,164 @@ const NAV = [
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
+const PAGE_TITLES = {
+  "/dashboard": "Pipeline",
+  "/emails": "Emails",
+  "/resumes": "Resumes",
+  "/applications": "Applications",
+  "/quick-apply": "Quick Apply",
+  "/prep": "Interview Prep",
+  "/settings": "Settings",
+};
+
 export default function Layout() {
-  const [open, setOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { user, logout } = useAuthStore();
+  const location = useLocation();
+  const menuRef = useRef(null);
+
+  const pageTitle = PAGE_TITLES[location.pathname] || "LinkedOut";
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   return (
-    <div className="flex h-screen bg-base-800 text-base-100 font-sans">
+    <div className="min-h-screen bg-base-800 text-base-100 font-sans">
+      {/* Fixed header - matches Windcraft: outer has mx-6 pt-6, inner has border-y */}
+      <div className="fixed bg-base-900 px-3 py-1 top-0 inset-x-0 z-20 pt-6 mx-6">
+        <div className="flex justify-between bg-base-900 border-y border-base-500 px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center py-2 gap-4">
+            {/* Toggle + Logo */}
+            <div id="toggleLogoContainer" className="flex items-center gap-4">
+              {/* Sidebar toggle - desktop */}
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className={`hidden lg:flex justify-center items-center size-8 border border-base-400 rounded-xl text-base-200 hover:text-base-100 focus:outline-none transition-colors ${
+                  sidebarOpen ? "order-2" : "order-first"
+                }`}
+                aria-label="Toggle sidebar"
+              >
+                <svg className="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="18" height="18" x="3" y="3" rx="2" />
+                  <path d="M15 3v18" />
+                  <path d="m8 9 3 3-3 3" />
+                </svg>
+              </button>
+              {/* Mobile menu toggle */}
+              <button
+                onClick={() => setMobileOpen(true)}
+                className="lg:hidden flex justify-center items-center size-8 border border-base-400 rounded-xl text-base-200 hover:text-base-100 focus:outline-none transition-colors"
+                aria-label="Toggle menu"
+              >
+                <Menu className="shrink-0 size-4" />
+              </button>
+              {/* Logo */}
+              <a href="/" className="flex items-center gap-2 order-1">
+                <Logo size={28} />
+                <span className="font-mono font-bold text-lg hidden sm:block">linkedout</span>
+              </a>
+            </div>
+
+            {/* Breadcrumb */}
+            <ol className="ms-3 py-[7px] hidden md:flex items-center whitespace-nowrap">
+              <li className="flex items-center text-sm text-base-100">
+                <span>Home</span>
+                <svg className="shrink-0 mx-3 overflow-visible size-2.5 text-base-400" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M5 1L10.6869 7.16086C10.8637 7.35239 10.8637 7.64761 10.6869 7.83914L5 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </li>
+              <li className="text-sm font-semibold text-base-100 truncate">{pageTitle}</li>
+            </ol>
+          </div>
+
+          <div className="flex items-center py-2 gap-3">
+            {/* User avatar & dropdown */}
+            {user && (
+              <div className="relative" ref={menuRef}>
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="size-8 flex items-center justify-center rounded-full bg-accent text-accent-dark font-semibold text-sm hover:opacity-90 transition-all"
+                >
+                  {user.name?.[0]?.toUpperCase()}
+                </button>
+                {userMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-base-900 rounded-lg shadow-lg border border-base-600 py-1 z-50">
+                    <div className="px-4 py-2 border-b border-base-600">
+                      <p className="text-sm font-semibold">{user.name}</p>
+                      <p className="text-xs text-base-400 truncate">{user.email}</p>
+                    </div>
+                    <NavLink
+                      to="/settings"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-base-300 hover:bg-base-700"
+                    >
+                      <Settings className="size-4" />
+                      Settings
+                    </NavLink>
+                    <button
+                      onClick={() => { setUserMenuOpen(false); logout(); }}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-[#DC2626] hover:bg-base-700 w-full"
+                    >
+                      <LogOut className="size-4" />
+                      Sign out
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Mobile overlay */}
-      {open && (
-        <div className="fixed inset-0 bg-black/20 z-30 lg:hidden" onClick={() => setOpen(false)} />
+      {mobileOpen && (
+        <div className="fixed inset-0 bg-black/20 z-30 lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
-      {/* Sidebar */}
-      <aside
-        className={`fixed lg:static inset-y-0 left-0 z-40 w-56 bg-base-900 border-r border-base-600 flex flex-col transition-transform lg:translate-x-0 ${
-          open ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <Link to="/" className="flex items-center gap-2 px-5 py-5 border-b border-base-600">
-          <Logo size={28} />
-          <span className="font-mono font-bold text-sm tracking-tight">linkedout</span>
-        </Link>
+      {/* Body: sidebar + main, below fixed header */}
+      <div className="flex mt-20 m-4 overflow-hidden min-h-screen">
+        {/* Sidebar */}
+        <aside
+          className={`bg-base-900 border-r border-base-600 min-h-screen overflow-y-auto transition-all duration-300 ease-in-out
+            fixed lg:static inset-y-0 left-0 z-40 lg:z-0 w-64
+            ${mobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0
+            ${sidebarOpen ? "lg:w-64" : "lg:w-0 lg:min-w-0 lg:overflow-hidden lg:border-r-0"}`}
+        >
+          <div className="p-6">
+            <h3 className="text-xs font-semibold text-base-400 uppercase tracking-wide mb-4">Navigation</h3>
+            <nav className="space-y-1">
+              {NAV.map(({ to, icon: Icon, label }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={to === "/dashboard"}
+                  onClick={() => setMobileOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      isActive
+                        ? "bg-accent text-accent-dark font-semibold"
+                        : "text-base-300 hover:bg-base-700"
+                    }`
+                  }
+                >
+                  <Icon className="size-5" />
+                  {label}
+                </NavLink>
+              ))}
+            </nav>
+          </div>
+        </aside>
 
-        <nav className="flex-1 px-3 py-4 space-y-1">
-          {NAV.map(({ to, icon: Icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === "/dashboard"}
-              onClick={() => setOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                  isActive
-                    ? "bg-base-700 text-accent"
-                    : "text-base-300 hover:text-base-100 hover:bg-base-700/50"
-                }`
-              }
-            >
-              <Icon className="w-4 h-4 flex-shrink-0" />
-              {label}
-            </NavLink>
-          ))}
-        </nav>
-
-        <div className="px-4 py-4 border-t border-base-600 space-y-3">
-          {user && (
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-accent flex items-center justify-center">
-                <span className="text-accent-dark text-[10px] font-bold">{user.name?.[0]?.toUpperCase()}</span>
-              </div>
-              <span className="text-xs text-base-200 truncate">{user.name}</span>
-            </div>
-          )}
-          <button
-            onClick={logout}
-            className="flex items-center gap-2 text-xs text-base-400 hover:text-base-100 transition-colors w-full"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            Sign out
-          </button>
-        </div>
-      </aside>
-
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile header */}
-        <div className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-base-600 bg-base-900">
-          <button onClick={() => setOpen(true)} className="text-base-300 hover:text-base-100" aria-label="Toggle menu">
-            <Menu className="w-5 h-5" />
-          </button>
-          <span className="font-mono font-bold text-sm">linkedout</span>
-        </div>
-
+        {/* Main content */}
         <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
