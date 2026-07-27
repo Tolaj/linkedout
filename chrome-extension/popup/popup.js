@@ -154,6 +154,8 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     try {
       var user = await LinkedOut.API.login(email, password);
+      var stored = await chrome.storage.local.get("linkedout_token");
+      if (stored.linkedout_token) chrome.runtime.sendMessage({ type: "EXT_DO_LOGIN", token: stored.linkedout_token });
       showUserView(user);
     } catch (e) {
       loginError.textContent = e.message || "Login failed";
@@ -200,6 +202,8 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     try {
       var user = await LinkedOut.API.signup(name, email, password);
+      var stored = await chrome.storage.local.get("linkedout_token");
+      if (stored.linkedout_token) chrome.runtime.sendMessage({ type: "EXT_DO_LOGIN", token: stored.linkedout_token });
       showUserView(user);
     } catch (e) {
       signupError.textContent = e.message || "Signup failed";

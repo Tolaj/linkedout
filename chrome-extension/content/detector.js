@@ -92,6 +92,10 @@ window.LinkedOut = window.LinkedOut || {};
     if (msg.type === "FORCE_PANEL") {
       forceShowPanel();
     }
+    if (msg.type === "CLOSE_PANEL") {
+      var host = document.getElementById("linkedout-panel-host");
+      if (host) host.remove();
+    }
   });
 
   async function forceShowPanel() {

@@ -68,6 +68,21 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
           linkedout_token: data.token,
           linkedout_user: data.user,
         });
+        var loginDashUrls = ["*://linkedout.swapniljadhav.com/*", "http://localhost/*"];
+        loginDashUrls.forEach(function (pattern) {
+          chrome.tabs.query({ url: pattern }, function (tabs) {
+            tabs.forEach(function (tab) {
+              chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: function (token) {
+                  localStorage.setItem("linkedout_token", token);
+                  window.location.reload();
+                },
+                args: [data.token],
+              }).catch(function () {});
+            });
+          });
+        });
         sendResponse({ success: true, user: data.user });
       } catch (e) {
         if (e.message && e.message.includes("canceled")) {
@@ -88,13 +103,44 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     chrome.storage.local.remove(["linkedout_token", "linkedout_user"]);
   }
 
-  if (msg.type === "EXT_DO_LOGOUT") {
-    chrome.storage.local.remove(["linkedout_token", "linkedout_user"]);
-    var dashPatterns = ["*://linkedout.swapniljadhav.com/*", "http://localhost/*"];
-    dashPatterns.forEach(function (pattern) {
+  if (msg.type === "EXT_DO_LOGIN" && msg.token) {
+    var dashUrls = ["*://linkedout.swapniljadhav.com/*", "http://localhost/*"];
+    dashUrls.forEach(function (pattern) {
       chrome.tabs.query({ url: pattern }, function (tabs) {
         tabs.forEach(function (tab) {
-          chrome.tabs.sendMessage(tab.id, { type: "EXT_LOGOUT" }).catch(function () {});
+          chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: function (token) {
+              localStorage.setItem("linkedout_token", token);
+              window.location.reload();
+            },
+            args: [msg.token],
+          }).catch(function () {});
+        });
+      });
+    });
+  }
+
+  if (msg.type === "EXT_DO_LOGOUT") {
+    chrome.storage.local.remove(["linkedout_token", "linkedout_user"]);
+    chrome.tabs.query({}, function (tabs) {
+      tabs.forEach(function (tab) {
+        chrome.tabs.sendMessage(tab.id, { type: "CLOSE_PANEL" }).catch(function () {});
+      });
+    });
+    var dashUrls2 = ["*://linkedout.swapniljadhav.com/*", "http://localhost/*"];
+    dashUrls2.forEach(function (pattern) {
+      chrome.tabs.query({ url: pattern }, function (tabs) {
+        tabs.forEach(function (tab) {
+          chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: function () {
+              Object.keys(localStorage).filter(function (k) {
+                return k.startsWith("linkedout_");
+              }).forEach(function (k) { localStorage.removeItem(k); });
+              window.location.reload();
+            },
+          }).catch(function () {});
         });
       });
     });

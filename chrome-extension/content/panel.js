@@ -982,4 +982,12 @@ window.LinkedOut = window.LinkedOut || {};
     if (dismissed[window.location.href]) return;
     createLoginPanel();
   };
+
+  chrome.runtime.onMessage.addListener(function (msg) {
+    if (msg.type === "CLOSE_PANEL" && panelHost) {
+      panelHost.remove();
+      panelHost = null;
+      cleanupDocListeners();
+    }
+  });
 })();
