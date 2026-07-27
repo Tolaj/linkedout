@@ -169,6 +169,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   });
 
   logoutBtn.addEventListener("click", async function () {
+    chrome.runtime.sendMessage({ type: "EXT_DO_LOGOUT" });
     await LinkedOut.API.logout();
     showView(loginView);
     emailInput.value = "";
@@ -281,51 +282,37 @@ document.addEventListener("DOMContentLoaded", async function () {
     chrome.tabs.create({ url: url });
   });
 
-  // Google Sign-In via chrome.identity
+  // Google Sign-In — delegated to background service worker so it
+  // survives the popup closing when the OAuth window opens.
   async function handleGoogleSignIn(btn, errorEl) {
-    var clientId = LinkedOut.GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      errorEl.textContent = "Google Client ID not configured";
-      errorEl.style.display = "block";
-      return;
-    }
-
-    var redirectUrl = chrome.identity.getRedirectURL();
-    var nonce = crypto.randomUUID();
-    var authUrl = "https://accounts.google.com/o/oauth2/v2/auth"
-      + "?client_id=" + encodeURIComponent(clientId)
-      + "&response_type=id_token"
-      + "&redirect_uri=" + encodeURIComponent(redirectUrl)
-      + "&scope=" + encodeURIComponent("openid email profile")
-      + "&nonce=" + nonce
-      + "&prompt=select_account";
-
     var originalText = btn.innerHTML;
-    try {
-      await saveUrls();
-      var responseUrl = await chrome.identity.launchWebAuthFlow({
-        url: authUrl,
-        interactive: true,
-      });
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Signing in...';
 
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Signing in...';
+    await saveUrls();
 
-      var hash = new URL(responseUrl).hash.substring(1);
-      var params = new URLSearchParams(hash);
-      var idToken = params.get("id_token");
-      if (!idToken) throw new Error("No ID token received");
-
-      var user = await LinkedOut.API.googleLogin(idToken);
-      showUserView(user);
-    } catch (e) {
-      if (e.message && e.message.includes("canceled")) return;
-      errorEl.textContent = e.message || "Google sign-in failed";
-      errorEl.style.display = "block";
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = originalText;
-    }
+    chrome.runtime.sendMessage({ type: "GOOGLE_SIGN_IN" }, function (response) {
+      if (!response) {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        return;
+      }
+      if (response.canceled) {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        return;
+      }
+      if (response.error) {
+        errorEl.textContent = response.error;
+        errorEl.style.display = "block";
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        return;
+      }
+      if (response.success) {
+        showUserView(response.user);
+      }
+    });
   }
 
   document.getElementById("google-login-btn").addEventListener("click", function () {
