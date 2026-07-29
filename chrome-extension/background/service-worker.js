@@ -149,11 +149,12 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   if (msg.type === "API_PROXY") {
     (async function () {
       try {
-        var res = await fetch(msg.url, {
+        var fetchOpts = {
           method: msg.options.method || "GET",
           headers: msg.options.headers || {},
-          body: msg.options.body || undefined,
-        });
+        };
+        if (msg.options.body) fetchOpts.body = msg.options.body;
+        var res = await fetch(msg.url, fetchOpts);
         if (res.status === 401) {
           await chrome.storage.local.remove(["linkedout_token", "linkedout_user"]);
           sendResponse({ _unauthorized: true });

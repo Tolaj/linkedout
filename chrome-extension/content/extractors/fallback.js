@@ -84,6 +84,15 @@ LinkedOut.extractors.push({
     if (listingUrlWords.test(window.location.pathname + window.location.search)) {
       score -= 4; reasons.push("neg-listing-url");
     }
+    // ATS company listing pages (e.g. jobs.ashbyhq.com/company-slug with only 1-2 path segments)
+    if (atsDomains.test(window.location.hostname)) {
+      var pathSegments = window.location.pathname.split("/").filter(Boolean);
+      if (pathSegments.length <= 1) { score -= 6; reasons.push("neg-ats-listing"); }
+    }
+    // Title suggests a listing page ("Open Positions", "All Jobs", "N open roles")
+    if (/open\s+positions|all\s+(jobs|positions|openings|roles)|\d+\s+open\s+(roles?|positions?|jobs?)/i.test(pageTitle)) {
+      score -= 5; reasons.push("neg-listing-title2");
+    }
     // Multiple job cards = listing page
     var jobCards = doc.querySelectorAll('[class*="job-card" i], [class*="jobCard" i], [class*="job_card" i], [class*="job-item" i], [class*="job-result" i], [class*="job-listing" i], [data-testid*="job-card"], [data-testid*="job-result"]');
     if (jobCards.length >= 3) { score -= 5; reasons.push("neg-cards(" + jobCards.length + ")"); }
@@ -132,9 +141,14 @@ LinkedOut.extractors.push({
     }
 
     if (!company) company = ogSiteName || "";
-    if (!company) {
-      var host = window.location.hostname.replace(/^(www|jobs|careers|job|career|apply)\./, "").split(".")[0];
-      company = host.replace(/[-_]/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+    if (!company || /ashbyhq|greenhouse|lever|jobvite|workable|smartrecruiters|breezy/i.test(company)) {
+      var pathSlug = window.location.pathname.split("/").filter(Boolean)[0];
+      if (pathSlug && !/job|jobs|career|careers|apply|position|opening/i.test(pathSlug)) {
+        company = pathSlug.replace(/[-_]/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+      } else {
+        var host = window.location.hostname.replace(/^(www|jobs|careers|job|career|apply)\./, "").split(".")[0];
+        company = host.replace(/[-_]/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+      }
     }
 
     if (!role) {

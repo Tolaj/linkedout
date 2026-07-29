@@ -111,6 +111,15 @@
       ],
       "js": ["content/auth-sync.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://linkedout.swapniljadhav.com/*",
+        "http://localhost/*"
+      ],
+      "js": ["content/auth-sync-page.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ],
   "action": {

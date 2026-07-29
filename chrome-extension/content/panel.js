@@ -10,6 +10,7 @@ window.LinkedOut = window.LinkedOut || {};
   var DRAFTS_KEY = "linkedout_drafts";
   var CACHE_KEY = "linkedout_captured_fields";
   var CACHE_URL_KEY = "linkedout_captured_url";
+  var _draftInterval = null;
 
   function cacheFields(fields) {
     try {
@@ -550,32 +551,50 @@ window.LinkedOut = window.LinkedOut || {};
     });
   }
 
-  // Cache fields on form submit so they survive page reload
-  // Also save a draft if not already tracked
-  document.addEventListener("submit", function () {
+  var _draftSaved = false;
+  function saveDraftAndShowToday() {
+    if (_isTracked || !shadowRoot || _draftSaved) return;
     var fields = scanPageFields();
     if (fields.length > 0) {
       capturedFields = fields;
       cacheFields(fields);
-      if (shadowRoot) {
-        refreshDetailsTab(shadowRoot);
-        var detailsTab = shadowRoot.querySelector('.lo-tab[data-tab="details"]');
-        if (detailsTab) detailsTab.click();
-        showStatus("Captured " + fields.length + " fields", "success");
-      }
+      refreshDetailsTab(shadowRoot);
     }
-    // Save draft if not already tracked
-    if (!_isTracked && shadowRoot) {
-      var appData = readFormValues(shadowRoot);
-      if (appData.company || appData.role) {
-        appData.formFields = readDetailsValues(shadowRoot);
-        appData._draft = true;
-        appData._draftDate = new Date().toISOString();
-        appData.dateApplied = appData.dateApplied || new Date().toISOString().slice(0, 10);
-        saveDraft(draftKey(), appData);
-      }
+    var appData = readFormValues(shadowRoot);
+    if (appData.company || appData.role) {
+      _draftSaved = true;
+      appData.formFields = readDetailsValues(shadowRoot);
+      appData._draft = true;
+      appData._draftDate = new Date().toISOString();
+      appData.dateApplied = appData.dateApplied || new Date().toISOString().slice(0, 10);
+      saveDraft(draftKey(), appData);
+      initTrackState(shadowRoot, appData);
+      var todayTab = shadowRoot.querySelector('.lo-tab[data-tab="today"]');
+      if (todayTab) todayTab.click();
+      showStatus("Draft saved", "success");
+    }
+  }
+
+  // Native form submit
+  document.addEventListener("submit", saveDraftAndShowToday, true);
+
+  // JS-based forms: detect clicks on submit/apply buttons
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest("button, input[type='submit'], a[role='button'], [role='button']");
+    if (!btn) return;
+    var text = (btn.textContent || btn.value || "").trim().toLowerCase();
+    if (/^(submit|apply|send|submit\s+application|apply\s+now|submit\s+my\s+application)$/i.test(text)) {
+      setTimeout(saveDraftAndShowToday, 500);
     }
   }, true);
+
+  function stopDraftAutoSave() {
+    if (_draftInterval) { clearInterval(_draftInterval); _draftInterval = null; }
+  }
+
+  function stopDraftAutoSave() {
+    if (_draftInterval) { clearInterval(_draftInterval); _draftInterval = null; }
+  }
 
   // ─── Main Panel ────────────────────────────────────────────────────
   async function createPanel(data) {
@@ -670,6 +689,7 @@ window.LinkedOut = window.LinkedOut || {};
         chrome.runtime.sendMessage({ type: "APP_TRACKED" });
         clearCache();
         removeDraft(draftKey());
+        stopDraftAutoSave();
         _isTracked = true;
         var msg = "Tracked!";
         if (appData.formFields.length > 0) msg += " (" + appData.formFields.length + " details saved)";
@@ -717,7 +737,7 @@ window.LinkedOut = window.LinkedOut || {};
     var link = data.link || data.jobUrl || "";
 
     try {
-      var allApps = await LinkedOut.API._request("/applications");
+      var allApps = await LinkedOut.API.getApplications();
       if (!Array.isArray(allApps)) { loadTodayApps(sr, null); return; }
 
       // Check if already tracked by job link
@@ -730,6 +750,7 @@ window.LinkedOut = window.LinkedOut || {};
 
       if (existing) {
         _isTracked = true;
+        stopDraftAutoSave();
         // Already tracked — show only Today tab
         var appTab = sr.querySelector('.lo-tab[data-tab="application"]');
         var detTab = sr.querySelector('.lo-tab[data-tab="details"]');
@@ -896,7 +917,7 @@ window.LinkedOut = window.LinkedOut || {};
     var container = sr.getElementById("lo-tab-today");
     if (!container) return;
     try {
-      var allApps = await LinkedOut.API._request("/applications");
+      var allApps = await LinkedOut.API.getApplications();
       var apps = [];
       if (Array.isArray(allApps)) {
         var today = new Date().toISOString().slice(0, 10);

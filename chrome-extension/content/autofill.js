@@ -16,10 +16,12 @@ LinkedOut.autofill = {
   },
 
   _extractLabel: function (el) {
+    // 1. label[for] association
     if (el.id) {
       var lbl = document.querySelector('label[for="' + CSS.escape(el.id) + '"]');
       if (lbl) return lbl.textContent.trim();
     }
+    // 2. Wrapping <label>
     var parent = el.closest("label");
     if (parent) {
       var text = "";
@@ -32,11 +34,32 @@ LinkedOut.autofill = {
       text = text.trim();
       if (text) return text;
     }
+    // 3. aria attributes
     if (el.getAttribute("aria-label")) return el.getAttribute("aria-label");
     if (el.getAttribute("aria-labelledby")) {
       var ref = document.getElementById(el.getAttribute("aria-labelledby"));
       if (ref) return ref.textContent.trim();
     }
+    // 4. Look for a <label> or heading-like element in the same container
+    var container = el.closest("div, fieldset, section, li, td");
+    if (container) {
+      var labelEl = container.querySelector("label, legend, .label, [class*='label'], [class*='Label']");
+      if (labelEl && labelEl.textContent.trim()) return labelEl.textContent.trim();
+      // Check preceding siblings for text
+      var prev = el.previousElementSibling || (el.parentElement && el.parentElement.previousElementSibling);
+      if (prev && prev.textContent.trim() && prev.textContent.trim().length < 60) return prev.textContent.trim();
+    }
+    // 5. Walk up to find the nearest label-like ancestor text
+    var walker = el.parentElement;
+    for (var w = 0; w < 4 && walker; w++) {
+      var labels = walker.querySelectorAll("label, legend, [class*='label'], [class*='Label'], h3, h4, span");
+      for (var k = 0; k < labels.length; k++) {
+        var lt = labels[k].textContent.trim();
+        if (lt && lt.length < 60 && !labels[k].contains(el) && labels[k] !== el) return lt;
+      }
+      walker = walker.parentElement;
+    }
+    // 6. Placeholder and name fallback
     if (el.placeholder) return el.placeholder;
     if (el.name) return el.name.replace(/[_\-]/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2");
     return "";

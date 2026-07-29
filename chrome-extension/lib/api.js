@@ -15,32 +15,43 @@ LinkedOut.API = {
     const headers = { "Content-Type": "application/json", ...options.headers };
     if (token) headers.Authorization = "Bearer " + token;
 
-    // Route through service worker to avoid CORS in content scripts
-    try {
-      const response = await chrome.runtime.sendMessage({
-        type: "API_PROXY",
-        url: apiUrl + path,
-        options: { ...options, headers },
+    // Content scripts run on the page's origin, causing CORS issues.
+    // Detect content script context and proxy through the service worker.
+    const isContentScript = typeof window !== "undefined"
+      && window.location
+      && !window.location.protocol.startsWith("chrome-extension");
+
+    if (isContentScript) {
+      return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({
+          type: "API_PROXY",
+          url: apiUrl + path,
+          options: { method: options.method || "GET", headers, body: options.body },
+        }, (response) => {
+          if (chrome.runtime.lastError) {
+            return reject(new Error(chrome.runtime.lastError.message));
+          }
+          if (!response) return reject(new Error("No response from proxy"));
+          if (response._proxyError) return reject(new Error(response._proxyError));
+          if (response._unauthorized) {
+            chrome.storage.local.remove(["linkedout_token", "linkedout_user"]);
+            return resolve({ _unauthorized: true });
+          }
+          resolve(response);
+        });
       });
-      if (response && response._proxyError) throw new Error(response._proxyError);
-      if (response && response._unauthorized) {
+    }
+
+    const res = await fetch(apiUrl + path, { ...options, headers });
+    if (!res.ok) {
+      if (res.status === 401) {
         await chrome.storage.local.remove(["linkedout_token", "linkedout_user"]);
         return { _unauthorized: true };
       }
-      return response;
-    } catch (e) {
-      // Fallback to direct fetch (works in popup/service worker context)
-      const res = await fetch(apiUrl + path, { ...options, headers });
-      if (!res.ok) {
-        if (res.status === 401) {
-          await chrome.storage.local.remove(["linkedout_token", "linkedout_user"]);
-          return { _unauthorized: true };
-        }
-        const err = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(err.error || res.statusText);
-      }
-      return res.json();
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || res.statusText);
     }
+    return res.json();
   },
 
   async login(email, password) {
@@ -129,8 +140,10 @@ LinkedOut.API = {
   },
 
   async getProfileFields() {
-    const allFields = await this._request("/profilefields");
-    if (allFields._unauthorized || !Array.isArray(allFields)) return allFields;
+    var raw = await this._request("/profilefields");
+    if (raw._unauthorized) return raw;
+    var allFields = this._unwrapArray(raw);
+    if (!Array.isArray(allFields)) return allFields;
     const settings = await this.getSettings();
     const workspace = settings && settings.folderName ? settings.folderName : "";
     if (!workspace) return allFields;
@@ -146,8 +159,18 @@ LinkedOut.API = {
     }).catch(function () { return {}; });
   },
 
+  _unwrapArray: function (raw) {
+    return Array.isArray(raw) ? raw : (raw && Array.isArray(raw.data) ? raw.data : raw);
+  },
+
+  async getApplications() {
+    var raw = await this._request("/applications");
+    if (raw._unauthorized) return raw;
+    return this._unwrapArray(raw);
+  },
+
   async getTodayApps() {
-    var all = await this._request("/applications");
+    var all = await this.getApplications();
     if (all._unauthorized || !Array.isArray(all)) return all;
     var today = new Date().toISOString().slice(0, 10);
     return all.filter(function (a) { return a.dateApplied === today; });
