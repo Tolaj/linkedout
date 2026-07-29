@@ -1,7 +1,7 @@
 window.LinkedOut = window.LinkedOut || {};
 
 LinkedOut.FIELD_ALIASES = {
-  first_name: ["first name", "fname", "given name", "your first name", "legal first name", "first"],
+  first_name: ["first name", "fname", "given name", "your first name", "legal first name", "first", "name", "full name", "your name", "legal name", "candidate name"],
   last_name: ["last name", "lname", "surname", "family name", "your last name", "legal last name", "last"],
   email: ["email", "e-mail", "email address", "your email", "contact email", "work email", "personal email"],
   phone: ["phone", "telephone", "tel", "cell", "cellphone", "mobile", "phone number", "mobile number", "contact number", "mobile phone"],

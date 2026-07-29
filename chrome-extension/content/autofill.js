@@ -106,7 +106,14 @@ LinkedOut.autofill = {
       }
 
       if (matchedKey && answerMap[matchedKey] && answerMap[matchedKey].value) {
-        results.push({ element: ff.element, field: answerMap[matchedKey], fieldType: ff.fieldType });
+        // If a generic "name" field matched first_name, combine first + last
+        var FULL_NAME_ALIASES = ["name", "full name", "your name", "legal name", "candidate name"];
+        if (matchedKey === "first_name" && FULL_NAME_ALIASES.indexOf(normalized) >= 0 && answerMap.last_name && answerMap.last_name.value) {
+          var fullName = { fieldKey: "full_name", value: answerMap.first_name.value + " " + answerMap.last_name.value };
+          results.push({ element: ff.element, field: fullName, fieldType: ff.fieldType });
+        } else {
+          results.push({ element: ff.element, field: answerMap[matchedKey], fieldType: ff.fieldType });
+        }
       }
     }
     return results;
