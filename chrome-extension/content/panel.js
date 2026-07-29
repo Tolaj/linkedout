@@ -98,10 +98,26 @@ window.LinkedOut = window.LinkedOut || {};
 
   var PANEL_CSS = `
     :host {
-      all: initial;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 13px;
-      color: #E5E5E5;
+      all: initial !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+      font-size: 13px !important;
+      line-height: normal !important;
+      color: #E5E5E5 !important;
+      letter-spacing: normal !important;
+      word-spacing: normal !important;
+      text-transform: none !important;
+      direction: ltr !important;
+    }
+    :host * , :host *::before, :host *::after {
+      all: revert;
+      box-sizing: border-box;
+      font-family: inherit;
+      font-size: inherit;
+      line-height: inherit;
+      color: inherit;
+      letter-spacing: inherit;
+      word-spacing: inherit;
+      text-transform: inherit;
     }
     .lo-panel {
       position: fixed;
