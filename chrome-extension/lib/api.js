@@ -15,16 +15,32 @@ LinkedOut.API = {
     const headers = { "Content-Type": "application/json", ...options.headers };
     if (token) headers.Authorization = "Bearer " + token;
 
-    const res = await fetch(apiUrl + path, { ...options, headers });
-    if (!res.ok) {
-      if (res.status === 401) {
+    // Route through service worker to avoid CORS in content scripts
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: "API_PROXY",
+        url: apiUrl + path,
+        options: { ...options, headers },
+      });
+      if (response && response._proxyError) throw new Error(response._proxyError);
+      if (response && response._unauthorized) {
         await chrome.storage.local.remove(["linkedout_token", "linkedout_user"]);
         return { _unauthorized: true };
       }
-      const err = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(err.error || res.statusText);
+      return response;
+    } catch (e) {
+      // Fallback to direct fetch (works in popup/service worker context)
+      const res = await fetch(apiUrl + path, { ...options, headers });
+      if (!res.ok) {
+        if (res.status === 401) {
+          await chrome.storage.local.remove(["linkedout_token", "linkedout_user"]);
+          return { _unauthorized: true };
+        }
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || res.statusText);
+      }
+      return res.json();
     }
-    return res.json();
   },
 
   async login(email, password) {

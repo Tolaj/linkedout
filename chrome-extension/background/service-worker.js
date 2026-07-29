@@ -146,6 +146,33 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     });
   }
 
+  if (msg.type === "API_PROXY") {
+    (async function () {
+      try {
+        var res = await fetch(msg.url, {
+          method: msg.options.method || "GET",
+          headers: msg.options.headers || {},
+          body: msg.options.body || undefined,
+        });
+        if (res.status === 401) {
+          await chrome.storage.local.remove(["linkedout_token", "linkedout_user"]);
+          sendResponse({ _unauthorized: true });
+          return;
+        }
+        if (!res.ok) {
+          var err = await res.json().catch(function () { return {}; });
+          sendResponse({ _proxyError: err.error || res.statusText });
+          return;
+        }
+        var data = await res.json();
+        sendResponse(data);
+      } catch (e) {
+        sendResponse({ _proxyError: e.message || "Request failed" });
+      }
+    })();
+    return true;
+  }
+
   if (msg.type === "GET_AUTH") {
     chrome.storage.local.get(["linkedout_token", "linkedout_user", "linkedout_api_url"], function (data) {
       sendResponse(data);
