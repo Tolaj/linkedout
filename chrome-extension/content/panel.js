@@ -101,16 +101,17 @@ window.LinkedOut = window.LinkedOut || {};
       all: initial !important;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
       font-size: 13px !important;
-      line-height: normal !important;
-      color: #E5E5E5 !important;
+      line-height: 1.4 !important;
+      color: #1a1a1a !important;
       letter-spacing: normal !important;
       word-spacing: normal !important;
       text-transform: none !important;
       direction: ltr !important;
     }
-    :host * , :host *::before, :host *::after {
-      all: revert;
+    :host *, :host *::before, :host *::after {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
       font-family: inherit;
       font-size: inherit;
       line-height: inherit;
@@ -118,6 +119,8 @@ window.LinkedOut = window.LinkedOut || {};
       letter-spacing: inherit;
       word-spacing: inherit;
       text-transform: inherit;
+      border: none;
+      background: none;
     }
     .lo-panel {
       position: fixed;
@@ -125,10 +128,10 @@ window.LinkedOut = window.LinkedOut || {};
       right: 20px;
       width: 370px;
       max-height: 85vh;
-      background: #171717;
-      border: 1px solid #404040;
+      background: #ffffff;
+      border: 1px solid #d4d4d4;
       border-radius: 12px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
       z-index: 2147483647;
       overflow: hidden;
       display: flex;
@@ -141,32 +144,32 @@ window.LinkedOut = window.LinkedOut || {};
     }
     .lo-header {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 16px; background: #262626;
-      border-bottom: 1px solid #404040; cursor: grab; user-select: none; flex-shrink: 0;
+      padding: 10px 16px; background: #f5f5f5;
+      border-bottom: 1px solid #d4d4d4; cursor: grab; user-select: none; flex-shrink: 0;
     }
     .lo-header:active { cursor: grabbing; }
     .lo-header-left { display: flex; align-items: center; gap: 8px; }
     .lo-logo { width: 20px; height: 20px; border-radius: 4px; }
-    .lo-title { font-size: 13px; font-weight: 600; font-family: ui-monospace, monospace; }
+    .lo-title { font-size: 13px; font-weight: 600; font-family: ui-monospace, monospace; color: #1a1a1a; }
     .lo-header-actions { display: flex; align-items: center; gap: 4px; }
     .lo-btn-icon {
-      background: none; border: none; color: #A3A3A3; cursor: pointer;
+      background: none; border: none; color: #737373; cursor: pointer;
       padding: 4px; border-radius: 4px; font-size: 16px; line-height: 1;
     }
-    .lo-btn-icon:hover { color: #E5E5E5; background: #404040; }
+    .lo-btn-icon:hover { color: #1a1a1a; background: #e5e5e5; }
 
     .lo-tabs {
-      display: flex; border-bottom: 1px solid #404040;
-      background: #1E1E1E; flex-shrink: 0;
+      display: flex; border-bottom: 1px solid #d4d4d4;
+      background: #fafafa; flex-shrink: 0;
     }
     .lo-tab {
       flex: 1; padding: 8px 12px; font-size: 11px; font-weight: 600;
-      text-transform: uppercase; letter-spacing: 0.5px; color: #737373;
+      text-transform: uppercase; letter-spacing: 0.5px; color: #a3a3a3;
       background: none; border: none; border-bottom: 2px solid transparent;
       cursor: pointer; font-family: inherit; transition: color 0.15s, border-color 0.15s;
     }
-    .lo-tab:hover { color: #A3A3A3; }
-    .lo-tab.lo-active { color: #ffffff; border-bottom-color: #ffffff; }
+    .lo-tab:hover { color: #525252; }
+    .lo-tab.lo-active { color: #1a1a1a; border-bottom-color: #1a1a1a; }
     .lo-tab-content { display: none; }
     .lo-tab-content.lo-active { display: block; }
 
@@ -176,42 +179,42 @@ window.LinkedOut = window.LinkedOut || {};
     .lo-body.lo-collapsed { display: none; }
     .lo-field { margin-bottom: 10px; }
     .lo-label {
-      display: block; font-size: 10px; color: #A3A3A3; margin-bottom: 4px;
+      display: block; font-size: 10px; color: #737373; margin-bottom: 4px;
       text-transform: uppercase; letter-spacing: 0.5px;
       line-height: 1; white-space: nowrap;
     }
     .lo-input, .lo-select, .lo-textarea {
-      width: 100%; background: #262626; border: 1px solid #525252;
-      border-radius: 6px; padding: 7px 10px; color: #E5E5E5;
+      width: 100%; background: #f5f5f5; border: 1px solid #d4d4d4;
+      border-radius: 6px; padding: 7px 10px; color: #1a1a1a;
       font-size: 13px; font-family: inherit; outline: none; box-sizing: border-box;
     }
-    .lo-input:focus, .lo-select:focus, .lo-textarea:focus { border-color: #ffffff; }
+    .lo-input:focus, .lo-select:focus, .lo-textarea:focus { border-color: #1a1a1a; }
     .lo-textarea { resize: vertical; min-height: 50px; }
     .lo-select { appearance: auto; }
     .lo-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
     .lo-footer {
-      padding: 10px 16px; border-top: 1px solid #404040;
+      padding: 10px 16px; border-top: 1px solid #d4d4d4;
       display: flex; align-items: center; gap: 8px; flex-shrink: 0;
     }
     .lo-btn-primary {
-      flex: 1; background: #ffffff; color: #171717; border: none;
+      flex: 1; background: #1a1a1a; color: #ffffff; border: none;
       padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
       cursor: pointer; font-family: inherit; white-space: nowrap;
     }
-    .lo-btn-primary:hover { background: #e5e5e5; }
+    .lo-btn-primary:hover { background: #333333; }
     .lo-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
     .lo-btn-tracked {
-      flex: 1; background: #262626; color: #16A34A; border: 1px solid #333;
+      flex: 1; background: #f0fdf4; color: #16A34A; border: 1px solid #bbf7d0;
       padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
       cursor: default; font-family: inherit; white-space: nowrap;
     }
     .lo-btn-secondary {
-      background: transparent; color: #ffffff; border: 1px solid #555;
+      background: transparent; color: #1a1a1a; border: 1px solid #d4d4d4;
       padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
       cursor: pointer; font-family: inherit; white-space: nowrap;
     }
-    .lo-btn-secondary:hover { background: rgba(255,255,255,0.08); }
+    .lo-btn-secondary:hover { background: #f5f5f5; }
     .lo-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .lo-status { font-size: 12px; padding: 6px 16px 12px; text-align: center; flex-shrink: 0; }
@@ -222,11 +225,11 @@ window.LinkedOut = window.LinkedOut || {};
     .lo-compact { padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .lo-compact-text { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
     .lo-compact-btn {
-      background: #ffffff; color: #171717; border: none; padding: 5px 12px;
+      background: #1a1a1a; color: #ffffff; border: none; padding: 5px 12px;
       border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer;
       white-space: nowrap; font-family: inherit;
     }
-    .lo-compact-btn:hover { background: #e5e5e5; }
+    .lo-compact-btn:hover { background: #333333; }
 
     .lo-detail-row {
       display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 6px; margin-bottom: 6px;
@@ -237,64 +240,64 @@ window.LinkedOut = window.LinkedOut || {};
       line-height: 1; margin-bottom: 2px;
     }
     .lo-detail-value {
-      flex: 1; min-width: 150px; background: #262626; border: 1px solid #333; border-radius: 5px;
-      padding: 6px 8px; color: #E5E5E5; font-size: 12px; font-family: inherit;
+      flex: 1; min-width: 150px; background: #f5f5f5; border: 1px solid #d4d4d4; border-radius: 5px;
+      padding: 6px 8px; color: #1a1a1a; font-size: 12px; font-family: inherit;
       outline: none; box-sizing: border-box;
     }
-    .lo-detail-value:focus { border-color: #555; }
+    .lo-detail-value:focus { border-color: #a3a3a3; }
     .lo-detail-remove {
-      flex-shrink: 0; background: none; border: none; color: #525252;
+      flex-shrink: 0; background: none; border: none; color: #a3a3a3;
       cursor: pointer; padding: 6px 2px; font-size: 14px; line-height: 1;
     }
     .lo-detail-remove:hover { color: #DC2626; }
     .lo-details-empty {
-      padding: 24px 16px; text-align: center; color: #525252; font-size: 12px; line-height: 1.6;
+      padding: 24px 16px; text-align: center; color: #a3a3a3; font-size: 12px; line-height: 1.6;
     }
     .lo-details-actions {
-      display: flex; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #333;
+      display: flex; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e5e5;
     }
     .lo-btn-sm {
-      background: transparent; color: #A3A3A3; border: 1px solid #333;
+      background: transparent; color: #525252; border: 1px solid #d4d4d4;
       padding: 5px 10px; border-radius: 5px; font-size: 11px;
       cursor: pointer; font-family: inherit;
     }
-    .lo-btn-sm:hover { color: #E5E5E5; border-color: #555; }
-    .lo-detail-count { font-size: 10px; color: #525252; margin-left: 4px; }
+    .lo-btn-sm:hover { color: #1a1a1a; border-color: #a3a3a3; }
+    .lo-detail-count { font-size: 10px; color: #a3a3a3; margin-left: 4px; }
 
     .lo-today-header {
       font-size: 11px; color: #737373; text-transform: uppercase; letter-spacing: 0.5px;
       padding: 4px 0 8px; font-weight: 600;
     }
     .lo-app-card {
-      background: #1E1E1E; border: 1px solid #333; border-radius: 8px;
+      background: #fafafa; border: 1px solid #d4d4d4; border-radius: 8px;
       padding: 10px 12px; margin-bottom: 6px; cursor: pointer;
       transition: border-color 0.15s;
     }
-    .lo-app-card:hover { border-color: #555; }
-    .lo-app-card.lo-current { border-color: #ffffff; }
-    .lo-app-company { font-size: 13px; font-weight: 600; }
-    .lo-app-role { font-size: 11px; color: #A3A3A3; margin-top: 2px; }
+    .lo-app-card:hover { border-color: #a3a3a3; }
+    .lo-app-card.lo-current { border-color: #1a1a1a; }
+    .lo-app-company { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+    .lo-app-role { font-size: 11px; color: #737373; margin-top: 2px; }
     .lo-app-meta { display: flex; gap: 8px; margin-top: 6px; align-items: center; }
     .lo-app-badge {
       font-size: 10px; padding: 2px 6px; border-radius: 4px;
-      background: #262626; color: #A3A3A3; font-weight: 500;
+      background: #f0f0f0; color: #525252; font-weight: 500;
     }
-    .lo-app-fields-count { font-size: 10px; color: #525252; }
+    .lo-app-fields-count { font-size: 10px; color: #a3a3a3; }
     .lo-draft-card { border-color: #D97706; border-style: dashed; }
     .lo-draft-card:hover { border-color: #F59E0B; }
     .lo-draft-badge {
       font-size: 9px; padding: 1px 5px; border-radius: 3px; margin-left: 6px;
       background: #D97706; color: #fff; font-weight: 600; vertical-align: middle;
     }
-    .lo-no-apps { padding: 20px; text-align: center; color: #525252; font-size: 12px; }
+    .lo-no-apps { padding: 20px; text-align: center; color: #a3a3a3; font-size: 12px; }
   `;
 
   var HEADER_HTML = `
     <div class="lo-header" id="lo-drag-handle">
       <div class="lo-header-left">
         <svg class="lo-logo" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-          <rect width="512" height="512" rx="96" fill="#171717"/>
-          <g transform="translate(106,106) scale(12.5)" fill="none" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="512" height="512" rx="96" fill="#1a1a1a"/>
+          <g transform="translate(106,106) scale(12.5)" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/>
           </g>
         </svg>
