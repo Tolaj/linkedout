@@ -5,29 +5,7 @@
   "description": "Auto-detect job postings and track applications in LinkedOut",
   "permissions": ["storage", "activeTab", "scripting", "identity"],
   "host_permissions": [
-    "*://*.linkedin.com/*",
-    "*://*.indeed.com/*",
-    "*://*.greenhouse.io/*",
-    "*://*.lever.co/*",
-    "*://*.glassdoor.com/*",
-    "*://*.myworkdayjobs.com/*",
-    "*://*.workday.com/*",
-    "*://*.jobvite.com/*",
-    "*://*.ashbyhq.com/*",
-    "*://*.icims.com/*",
-    "*://*.smartrecruiters.com/*",
-    "*://*.taleo.net/*",
-    "*://*.breezy.hr/*",
-    "*://*.workable.com/*",
-    "*://*.bamboohr.com/*",
-    "*://*.rippling.com/*",
-    "*://*.personio.com/*",
-    "*://*.recruitee.com/*",
-    "*://*.jazz.co/*",
-    "*://*.paylocity.com/*",
-    "*://*.dayforce.com/*",
-    "*://linkedout.swapniljadhav.com/*",
-    "http://localhost/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background/service-worker.js"

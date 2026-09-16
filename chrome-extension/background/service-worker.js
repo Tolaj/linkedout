@@ -83,6 +83,44 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
             });
           });
         });
+        // Show signed-in toast on the active tab
+        chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+          if (tabs[0] && tabs[0].id) {
+            chrome.scripting.executeScript({
+              target: { tabId: tabs[0].id },
+              func: function (userName) {
+                var host = document.createElement("div");
+                host.id = "lo-signin-toast";
+                var shadow = host.attachShadow({ mode: "closed" });
+                shadow.innerHTML = '<style>'
+                  + ':host { all: initial !important; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important; }'
+                  + '.toast { position: fixed; top: 20px; right: 20px; z-index: 2147483647;'
+                  + '  background: #ffffff; border: 1px solid #d4d4d4; border-radius: 12px;'
+                  + '  box-shadow: 0 8px 32px rgba(0,0,0,0.12); padding: 16px 20px;'
+                  + '  display: flex; align-items: center; gap: 12px; min-width: 260px;'
+                  + '  animation: lo-toastIn 0.3s ease-out; }'
+                  + '@keyframes lo-toastIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }'
+                  + '.icon { width: 36px; height: 36px; background: #f0fdf4; border-radius: 50%;'
+                  + '  display: flex; align-items: center; justify-content: center; flex-shrink: 0; }'
+                  + '.check { color: #16A34A; font-size: 18px; font-weight: bold; }'
+                  + '.text { flex: 1; }'
+                  + '.title { font-size: 14px; font-weight: 600; color: #1a1a1a; }'
+                  + '.sub { font-size: 12px; color: #737373; margin-top: 2px; }'
+                  + '</style>'
+                  + '<div class="toast">'
+                  + '  <div class="icon"><span class="check">✓</span></div>'
+                  + '  <div class="text">'
+                  + '    <div class="title">Signed in to LinkedOut</div>'
+                  + '    <div class="sub">Welcome, ' + (userName || 'User') + '</div>'
+                  + '  </div>'
+                  + '</div>';
+                document.body.appendChild(host);
+                setTimeout(function () { host.remove(); }, 4000);
+              },
+              args: [data.user.name || data.user.email || "User"],
+            }).catch(function () {});
+          }
+        });
         sendResponse({ success: true, user: data.user });
       } catch (e) {
         if (e.message && e.message.includes("canceled")) {
@@ -172,6 +210,35 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
       }
     })();
     return true;
+  }
+
+  if (msg.type === "FORCE_PANEL_ON_TAB" && msg.tabId) {
+    var tid = msg.tabId;
+    chrome.tabs.get(tid, function (tab) {
+      if (chrome.runtime.lastError || !tab) return;
+      if (tab.url && (tab.url.startsWith("chrome://") || tab.url.startsWith("chrome-extension://") || tab.url.startsWith("about:"))) return;
+      chrome.tabs.sendMessage(tid, { type: "FORCE_PANEL" }, function (resp) {
+        if (chrome.runtime.lastError) {
+          var scripts = [
+            "lib/constants.js", "lib/api.js",
+            "content/extractors/linkedin.js", "content/extractors/indeed.js",
+            "content/extractors/greenhouse.js", "content/extractors/lever.js",
+            "content/extractors/workday.js", "content/extractors/glassdoor.js",
+            "content/extractors/jobvite.js", "content/extractors/fallback.js",
+            "content/fieldAliases.js", "content/autofill.js",
+            "content/detector.js", "content/panel.js"
+          ];
+          chrome.scripting.executeScript({
+            target: { tabId: tid },
+            files: scripts,
+          }).then(function () {
+            setTimeout(function () {
+              chrome.tabs.sendMessage(tid, { type: "FORCE_PANEL" }).catch(function () {});
+            }, 300);
+          }).catch(function () {});
+        }
+      });
+    });
   }
 
   if (msg.type === "GET_AUTH") {
