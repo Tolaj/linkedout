@@ -93,39 +93,10 @@ LinkedOut.autofill = {
       var normalized = this._normalize(ff.label);
       if (!normalized) continue;
 
-      var matchedKey = null;
+      var matchedKey = reverseMap[normalized] || null;
 
-      // Strategy 1: exact alias match
-      if (reverseMap[normalized]) {
-        matchedKey = reverseMap[normalized];
-      }
-
-      // Strategy 2: substring
-      if (!matchedKey) {
-        for (var alias in reverseMap) {
-          if (normalized.includes(alias) || alias.includes(normalized)) {
-            matchedKey = reverseMap[alias];
-            break;
-          }
-        }
-      }
-
-      // Strategy 3: word-token overlap
-      if (!matchedKey) {
-        var normTokens = normalized.split(/\s+/);
-        var bestScore = 0;
-        for (var alias2 in reverseMap) {
-          var aliasTokens = alias2.split(/\s+/);
-          var overlap = 0;
-          for (var t = 0; t < normTokens.length; t++) {
-            if (aliasTokens.indexOf(normTokens[t]) >= 0) overlap++;
-          }
-          var score = overlap / Math.max(normTokens.length, aliasTokens.length);
-          if (score > bestScore && score >= 0.5) {
-            bestScore = score;
-            matchedKey = reverseMap[alias2];
-          }
-        }
+      if (!matchedKey && answerMap[normalized]) {
+        matchedKey = normalized;
       }
 
       if (matchedKey && answerMap[matchedKey] && answerMap[matchedKey].value) {
@@ -248,37 +219,15 @@ LinkedOut.autofill = {
       var normalized = this._normalize(ff.label);
       if (!normalized) continue;
 
-      var matchedKey = null;
-
-      if (reverseMap[normalized]) matchedKey = reverseMap[normalized];
+      var matchedKey = reverseMap[normalized] || null;
 
       if (!matchedKey) {
-        for (var alias in reverseMap) {
-          if (normalized.includes(alias) || alias.includes(normalized)) {
-            matchedKey = reverseMap[alias];
-            break;
-          }
+        if (answerMap[normalized]) {
+          matchedKey = normalized;
+        } else {
+          matchedKey = normalized;
         }
       }
-
-      if (!matchedKey) {
-        var normTokens = normalized.split(/\s+/);
-        var bestScore = 0;
-        for (var alias2 in reverseMap) {
-          var aliasTokens = alias2.split(/\s+/);
-          var overlap = 0;
-          for (var t = 0; t < normTokens.length; t++) {
-            if (aliasTokens.indexOf(normTokens[t]) >= 0) overlap++;
-          }
-          var score = overlap / Math.max(normTokens.length, aliasTokens.length);
-          if (score > bestScore && score >= 0.5) {
-            bestScore = score;
-            matchedKey = reverseMap[alias2];
-          }
-        }
-      }
-
-      if (!matchedKey) continue;
 
       var existing = answerMap[matchedKey];
       if (existing && existing.value === val) continue;
@@ -289,7 +238,7 @@ LinkedOut.autofill = {
         updates.push({
           id: LinkedOut.uid(),
           fieldKey: matchedKey,
-          label: matchedKey.replace(/_/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); }),
+          label: ff.label.replace(/[*:?]/g, "").trim(),
           category: "custom",
           type: "text",
           value: val,

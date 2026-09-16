@@ -1,8 +1,8 @@
 window.LinkedOut = window.LinkedOut || {};
 
 LinkedOut.FIELD_ALIASES = {
-  first_name: ["first name", "fname", "given name", "your first name", "legal first name", "first", "name", "full name", "your name", "legal name", "candidate name"],
-  last_name: ["last name", "lname", "surname", "family name", "your last name", "legal last name", "last"],
+  first_name: ["first name", "fname", "given name", "your first name", "legal first name", "name", "full name", "your name", "legal name", "candidate name"],
+  last_name: ["last name", "lname", "surname", "family name", "your last name", "legal last name"],
   email: ["email", "e-mail", "email address", "your email", "contact email", "work email", "personal email"],
   phone: ["phone", "telephone", "tel", "cell", "cellphone", "mobile", "phone number", "mobile number", "contact number", "mobile phone"],
   address: ["address", "street address", "street", "address line 1", "address line", "home address", "mailing address"],
@@ -10,10 +10,10 @@ LinkedOut.FIELD_ALIASES = {
   state: ["state", "province", "state/province", "region"],
   zip: ["zip", "zip code", "postal code", "zipcode", "zip/postal code", "postcode"],
   country: ["country", "country/region", "nation"],
-  work_authorization: ["work authorization", "authorized to work", "legally authorized", "work eligibility", "are you authorized", "employment eligibility", "authorized"],
+  work_authorization: ["work authorization", "authorized to work", "legally authorized", "work eligibility", "are you authorized", "employment eligibility"],
   visa_sponsorship: ["visa sponsorship", "sponsorship", "require sponsorship", "need sponsorship", "will you now or in the future require sponsorship", "immigration sponsorship"],
   salary_expectation: ["salary", "salary expectation", "expected salary", "desired salary", "compensation", "desired compensation", "salary requirements"],
-  years_experience: ["years of experience", "years experience", "total experience", "experience", "how many years"],
+  years_experience: ["years of experience", "years experience", "total experience", "how many years"],
   start_date: ["start date", "available start date", "availability", "earliest start date", "when can you start", "date available"],
   current_company: ["current company", "current employer", "present employer", "most recent employer"],
   current_title: ["current title", "current job title", "current position", "present title"],

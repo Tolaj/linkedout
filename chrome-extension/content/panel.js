@@ -400,6 +400,7 @@ window.LinkedOut = window.LinkedOut || {};
 
   function scanPageFields() {
     var fields = [];
+    var seenLabels = {};
     try {
       var allInputs = document.querySelectorAll("input, select, textarea");
       for (var i = 0; i < allInputs.length; i++) {
@@ -425,8 +426,74 @@ window.LinkedOut = window.LinkedOut || {};
           val = el.value;
         }
         if (!val || !val.trim()) continue;
+        seenLabels[label] = true;
         fields.push({ label: label, value: val.trim() });
       }
+
+      // Detect Yes/No and toggle button groups (Ashby, Lever, etc.)
+      var btnGroups = document.querySelectorAll('[role="group"], [role="radiogroup"], [data-testid*="toggle"], [class*="toggle"], [class*="ButtonGroup"], [class*="button-group"]');
+      btnGroups.forEach(function (group) {
+        var question = "";
+        var container = group.parentElement;
+        for (var w = 0; w < 4 && container; w++) {
+          var qEl = container.querySelector("label, legend, h3, h4, p, span");
+          if (qEl && qEl.textContent.trim().length > 5 && !group.contains(qEl)) {
+            question = qEl.textContent.trim();
+            break;
+          }
+          container = container.parentElement;
+        }
+        if (!question || seenLabels[question]) return;
+        var selected = group.querySelector('[aria-pressed="true"], [aria-checked="true"], [data-state="checked"], .selected, [class*="selected"], [class*="active"]:not([class*="inactive"])');
+        if (selected) {
+          seenLabels[question] = true;
+          fields.push({ label: question, value: selected.textContent.trim() });
+        }
+      });
+
+      // Also scan standalone Yes/No button pairs not in a formal group
+      var allBtns = document.querySelectorAll("button");
+      var yesNoPairs = [];
+      for (var bi = 0; bi < allBtns.length - 1; bi++) {
+        var b1 = allBtns[bi], b2 = allBtns[bi + 1];
+        var t1 = b1.textContent.trim().toLowerCase(), t2 = b2.textContent.trim().toLowerCase();
+        if ((t1 === "yes" && t2 === "no") || (t1 === "no" && t2 === "yes")) {
+          yesNoPairs.push([b1, b2]);
+        }
+      }
+      yesNoPairs.forEach(function (pair) {
+        var container = pair[0].parentElement;
+        if (!container) return;
+        var question = "";
+        var walker = container;
+        for (var w = 0; w < 5 && walker; w++) {
+          walker = walker.parentElement;
+          if (!walker) break;
+          var qEl = walker.querySelector("label, legend, h3, h4, p, span");
+          if (qEl && qEl.textContent.trim().length > 10 && !container.contains(qEl)) {
+            question = qEl.textContent.trim();
+            break;
+          }
+        }
+        if (!question || seenLabels[question]) return;
+        var selected = null;
+        for (var pi = 0; pi < pair.length; pi++) {
+          var btn = pair[pi];
+          var style = window.getComputedStyle(btn);
+          var bg = style.backgroundColor;
+          if (btn.getAttribute("aria-pressed") === "true" ||
+              btn.classList.contains("selected") ||
+              btn.getAttribute("data-state") === "checked" ||
+              (bg && bg !== "rgba(0, 0, 0, 0)" && bg !== "rgb(255, 255, 255)" && bg !== "transparent")) {
+            selected = btn;
+            break;
+          }
+        }
+        if (selected) {
+          seenLabels[question] = true;
+          fields.push({ label: question, value: selected.textContent.trim() });
+        }
+      });
     } catch (e) {}
     return fields;
   }
@@ -601,12 +668,30 @@ window.LinkedOut = window.LinkedOut || {};
   document.addEventListener("submit", saveDraftAndShowToday, true);
 
   // JS-based forms: detect clicks on submit/apply buttons
+  // Capture fields immediately, but only draft if the submission succeeds
   document.addEventListener("click", function (e) {
     var btn = e.target.closest("button, input[type='submit'], a[role='button'], [role='button']");
     if (!btn) return;
     var text = (btn.textContent || btn.value || "").trim().toLowerCase();
-    if (/^(submit|apply|send|submit\s+application|apply\s+now|submit\s+my\s+application)$/i.test(text)) {
-      setTimeout(saveDraftAndShowToday, 500);
+    if (/^(submit|apply|send|submit\s+application|apply\s+now|submit\s+my\s+application|save\s+and\s+continue|save\s*&\s*continue|next\s+step|submit\s+request)$/i.test(text)) {
+      // Capture fields NOW before the form disappears
+      var snapshotFields = scanPageFields();
+      if (snapshotFields.length > 0) {
+        capturedFields = snapshotFields;
+        cacheFields(snapshotFields);
+        if (shadowRoot) refreshDetailsTab(shadowRoot);
+      }
+      var urlBefore = window.location.href;
+      var formBefore = btn.closest("form");
+      var btnRef = btn;
+      setTimeout(function () {
+        var urlChanged = window.location.href !== urlBefore;
+        var formGone = formBefore && !document.contains(formBefore);
+        var btnGone = !document.contains(btnRef);
+        if (urlChanged || formGone || btnGone) {
+          saveDraftAndShowToday();
+        }
+      }, 2000);
     }
   }, true);
 
@@ -614,9 +699,30 @@ window.LinkedOut = window.LinkedOut || {};
     if (_draftInterval) { clearInterval(_draftInterval); _draftInterval = null; }
   }
 
-  function stopDraftAutoSave() {
-    if (_draftInterval) { clearInterval(_draftInterval); _draftInterval = null; }
+  // Live tracking: re-scan fields when user types or changes a value
+  var _scanDebounce = null;
+  function debouncedScan() {
+    if (_isTracked || !shadowRoot) return;
+    clearTimeout(_scanDebounce);
+    _scanDebounce = setTimeout(function () {
+      var fields = scanPageFields();
+      if (fields.length > 0) {
+        capturedFields = fields;
+        cacheFields(fields);
+        refreshDetailsTab(shadowRoot);
+      }
+    }, 1000);
   }
+  document.addEventListener("input", debouncedScan, true);
+  document.addEventListener("change", debouncedScan, true);
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest("button");
+    if (!btn) return;
+    var t = btn.textContent.trim().toLowerCase();
+    if (t === "yes" || t === "no") {
+      setTimeout(debouncedScan, 300);
+    }
+  }, true);
 
   // ─── Main Panel ────────────────────────────────────────────────────
   async function createPanel(data) {
@@ -699,6 +805,12 @@ window.LinkedOut = window.LinkedOut || {};
         return;
       }
 
+      var freshScan = scanPageFields();
+      if (freshScan.length > 0) {
+        capturedFields = freshScan;
+        cacheFields(freshScan);
+        refreshDetailsTab(shadowRoot);
+      }
       appData.formFields = readDetailsValues(shadowRoot);
 
       try {
@@ -715,8 +827,70 @@ window.LinkedOut = window.LinkedOut || {};
         removeDraft(draftKey());
         stopDraftAutoSave();
         _isTracked = true;
+
+        var fieldsSavedCount = 0;
+        try {
+          var existingFields = await LinkedOut.API.getProfileFields();
+          console.log("[LinkedOut] getProfileFields result:", typeof existingFields, Array.isArray(existingFields) ? existingFields.length : existingFields);
+          if (Array.isArray(existingFields)) {
+            var existingByKey = {};
+            for (var ci = 0; ci < existingFields.length; ci++) {
+              existingByKey[existingFields[ci].fieldKey] = existingFields[ci];
+            }
+            var reverseMap = LinkedOut.autofill._buildReverseMap();
+
+            var newFields = [];
+            var allDetails = capturedFields.length > 0 ? capturedFields : (appData.formFields || []);
+            console.log("[LinkedOut] Source fields:", allDetails.length, "from", capturedFields.length > 0 ? "capturedFields" : "formFields");
+            for (var di = 0; di < allDetails.length; di++) {
+              var dv = allDetails[di];
+              if (!dv.label || !dv.value) continue;
+              var normalized = LinkedOut.autofill._normalize(dv.label);
+              if (!normalized) continue;
+              var resolvedKey = reverseMap[normalized] || normalized;
+              if (existingByKey[resolvedKey]) {
+                var existingField = existingByKey[resolvedKey];
+                if (!existingField.value && dv.value) {
+                  newFields.push({
+                    id: existingField.id,
+                    fieldKey: resolvedKey,
+                    label: existingField.label,
+                    category: existingField.category || "custom",
+                    type: existingField.type || "text",
+                    value: dv.value,
+                  });
+                }
+                console.log("[LinkedOut] Field exists, skipping:", resolvedKey);
+                continue;
+              }
+              console.log("[LinkedOut] New field found:", resolvedKey, "=", dv.value.substring(0, 30));
+              newFields.push({
+                id: LinkedOut.uid(),
+                fieldKey: resolvedKey,
+                label: dv.label,
+                category: "custom",
+                type: "text",
+                value: dv.value,
+              });
+              existingByKey[resolvedKey] = true;
+            }
+            console.log("[LinkedOut] New fields to save:", newFields.length);
+            if (newFields.length > 0) {
+              var saveResult = await LinkedOut.API.saveProfileFields(newFields);
+              console.log("[LinkedOut] saveProfileFields result:", saveResult);
+              fieldsSavedCount = newFields.length;
+            }
+          } else {
+            console.warn("[LinkedOut] getProfileFields did not return array:", existingFields);
+          }
+        } catch (e) {
+          console.error("[LinkedOut] Field capture error:", e);
+          showStatus("Field sync failed: " + (e.message || e), "warn");
+        }
+
         var msg = "Tracked!";
         if (appData.formFields.length > 0) msg += " (" + appData.formFields.length + " details saved)";
+        if (fieldsSavedCount > 0) msg += " + " + fieldsSavedCount + " new fields added to Quick Apply";
         showStatus(msg, "success");
 
         // Switch to tracked state — hide Application/Details, show only Today
