@@ -1,6 +1,9 @@
 window.LinkedOut = window.LinkedOut || {};
 
 (function () {
+  if (window.LinkedOut._panelLoaded) return;
+  window.LinkedOut._panelLoaded = true;
+
   var panelHost = null;
   var shadowRoot = null;
   var dismissed = {};
@@ -622,6 +625,8 @@ window.LinkedOut = window.LinkedOut || {};
     }
     _isTracked = false;
     if (panelHost) panelHost.remove();
+    var existing = document.getElementById("linkedout-panel-host");
+    if (existing) existing.remove();
     cleanupDocListeners();
 
     // Try live scan first, fall back to cached fields (survives page reload)
@@ -953,6 +958,8 @@ window.LinkedOut = window.LinkedOut || {};
   // ─── Login Panel ───────────────────────────────────────────────────
   function createLoginPanel() {
     if (panelHost) panelHost.remove();
+    var existing = document.getElementById("linkedout-panel-host");
+    if (existing) existing.remove();
     panelHost = document.createElement("div");
     panelHost.id = "linkedout-panel-host";
     shadowRoot = panelHost.attachShadow({ mode: "closed" });
@@ -1006,6 +1013,7 @@ window.LinkedOut = window.LinkedOut || {};
 
     shadowRoot.getElementById("lo-close").addEventListener("click", function () {
       panelHost.remove(); panelHost = null; dismissed[window.location.href] = true;
+      cleanupDocListeners();
     });
   }
 

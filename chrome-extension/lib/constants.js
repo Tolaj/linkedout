@@ -1,6 +1,9 @@
 window.LinkedOut = window.LinkedOut || {};
 
-const isDev = !('update_url' in chrome.runtime.getManifest());
+if (window.LinkedOut._constantsLoaded) { /* skip re-declaration */ } else {
+window.LinkedOut._constantsLoaded = true;
+
+var isDev = !('update_url' in chrome.runtime.getManifest());
 LinkedOut.DEFAULT_API_URL = isDev
   ? "http://localhost:4000/api"
   : "https://linkedout-backend-seven.vercel.app/api";
@@ -33,3 +36,4 @@ LinkedOut.uid = function () {
 LinkedOut.GOOGLE_CLIENT_ID = "441735946847-vn32ru30nfei3tf8pjm3idu2h9bu1h2h.apps.googleusercontent.com";
 
 LinkedOut.extractors = [];
+}

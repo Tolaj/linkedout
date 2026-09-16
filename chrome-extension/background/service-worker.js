@@ -234,7 +234,7 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
           }).then(function () {
             setTimeout(function () {
               chrome.tabs.sendMessage(tid, { type: "FORCE_PANEL" }).catch(function () {});
-            }, 300);
+            }, 500);
           }).catch(function () {});
         }
       });
