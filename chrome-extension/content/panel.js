@@ -972,7 +972,7 @@ window.LinkedOut = window.LinkedOut || {};
         if (fields._unauthorized) { showStatus("Not logged in.", "warn"); }
         else if (!fields || fields.length === 0) { showStatus("No answers saved.", "warn"); }
         else {
-          var result = LinkedOut.autofill.run(fields);
+          var result = await LinkedOut.autofill.run(fields);
           try {
             var iframeResult = await new Promise(function (resolve) {
               chrome.runtime.sendMessage({ type: "FILL_ALL_FRAMES", fields: fields }, function (res) {

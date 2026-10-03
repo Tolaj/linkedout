@@ -1,0 +1,25 @@
+window.LinkedOut = window.LinkedOut || {};
+
+LinkedOut.AUTOCOMPLETE_MAP = {
+  "given-name": "first_name",
+  "additional-name": "first_name",
+  "family-name": "last_name",
+  "name": "first_name",
+  "email": "email",
+  "tel": "phone",
+  "tel-national": "phone",
+  "tel-local": "phone",
+  "street-address": "address",
+  "address-line1": "address",
+  "address-line2": "address",
+  "address-level2": "city",
+  "address-level1": "state",
+  "postal-code": "zip",
+  "country": "country",
+  "country-name": "country",
+  "organization": "current_company",
+  "organization-title": "current_title",
+  "url": "personal_website",
+  "bday": "graduation_year",
+  "sex": "gender",
+};

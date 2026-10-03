@@ -3,7 +3,7 @@
   "name": "LinkedOut - Job Application Tracker",
   "version": "1.1.0",
   "description": "Auto-detect job postings and track applications in LinkedOut",
-  "permissions": ["storage", "activeTab", "scripting", "identity"],
+  "permissions": ["storage", "activeTab", "scripting", "identity", "offscreen"],
   "host_permissions": [
     "<all_urls>"
   ],
@@ -38,6 +38,8 @@
       "js": [
         "lib/constants.js",
         "lib/api.js",
+        "lib/autocomplete-map.js",
+        "lib/learned-rules.js",
         "content/extractors/linkedin.js",
         "content/extractors/indeed.js",
         "content/extractors/greenhouse.js",
@@ -68,6 +70,8 @@
       "js": [
         "lib/constants.js",
         "lib/api.js",
+        "lib/autocomplete-map.js",
+        "lib/learned-rules.js",
         "content/extractors/linkedin.js",
         "content/extractors/indeed.js",
         "content/extractors/greenhouse.js",
@@ -115,5 +119,8 @@
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   }
 }

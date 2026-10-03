@@ -221,6 +221,7 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
         if (chrome.runtime.lastError) {
           var scripts = [
             "lib/constants.js", "lib/api.js",
+            "lib/autocomplete-map.js", "lib/learned-rules.js",
             "content/extractors/linkedin.js", "content/extractors/indeed.js",
             "content/extractors/greenhouse.js", "content/extractors/lever.js",
             "content/extractors/workday.js", "content/extractors/glassdoor.js",
@@ -239,6 +240,41 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
         }
       });
     });
+  }
+
+  if (msg.type === "ML_MATCH_FIELDS") {
+    (async function () {
+      try {
+        var hasDoc = await chrome.offscreen.hasDocument().catch(function () { return false; });
+        if (!hasDoc) {
+          await chrome.offscreen.createDocument({
+            url: "background/offscreen.html",
+            reasons: ["WORKERS"],
+            justification: "ML model for form field matching",
+          });
+          await new Promise(function (r) { setTimeout(r, 500); });
+        }
+        var payload = {
+          type: "ML_MATCH_FIELDS_EXEC",
+          queryLabels: msg.queryLabels,
+          profileLabels: msg.profileLabels,
+          threshold: msg.threshold,
+        };
+        function trySend(retries) {
+          chrome.runtime.sendMessage(payload, function (res) {
+            if (chrome.runtime.lastError && retries > 0) {
+              setTimeout(function () { trySend(retries - 1); }, 300);
+            } else {
+              sendResponse(res || []);
+            }
+          });
+        }
+        trySend(3);
+      } catch (e) {
+        sendResponse([]);
+      }
+    })();
+    return true;
   }
 
   if (msg.type === "SCAN_ALL_FRAMES" && sender.tab) {
@@ -274,7 +310,19 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
       target: { tabId: sender.tab.id, allFrames: true },
       func: function (profileFields) {
         if (typeof LinkedOut === "undefined" || !LinkedOut.autofill) return { filled: 0, total: 0 };
-        return LinkedOut.autofill.run(profileFields);
+        var formFields = LinkedOut.autofill.scanFormFields();
+        var matches = LinkedOut.autofill.matchFields(formFields, profileFields);
+        var filled = 0;
+        for (var i = 0; i < matches.length; i++) {
+          var m = matches[i];
+          if (m.fieldType === "file") continue;
+          var ok = LinkedOut.autofill.fillField(m.element, m.field.value, m.fieldType);
+          if (ok) {
+            filled++;
+            LinkedOut.autofill._highlight(m.element, "#16A34A");
+          }
+        }
+        return { filled: filled, total: formFields.length, matched: matches.length };
       },
       args: [msg.fields],
     }).then(function (results) {

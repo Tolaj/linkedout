@@ -87,6 +87,30 @@ LinkedOut.autofill = {
     return map;
   },
 
+  _matchFieldKey: function (element, normalized, reverseMap, answerMap) {
+    // Layer 1: autocomplete attribute (100% reliable when present)
+    var ac = element.getAttribute("autocomplete");
+    if (ac && ac !== "off" && ac !== "on") {
+      var acKey = (LinkedOut.AUTOCOMPLETE_MAP || {})[ac.trim().toLowerCase()];
+      if (acKey && answerMap[acKey]) return acKey;
+    }
+
+    // Layer 2: alias list (exact match)
+    var aliasKey = reverseMap[normalized] || null;
+    if (aliasKey && answerMap[aliasKey]) return aliasKey;
+
+    // Layer 3: direct fieldKey match
+    if (answerMap[normalized]) return normalized;
+
+    // Layer 4: learned rules (user corrections)
+    if (LinkedOut.learnedRules) {
+      var learnedKey = LinkedOut.learnedRules.lookup(normalized);
+      if (learnedKey && answerMap[learnedKey]) return learnedKey;
+    }
+
+    return null;
+  },
+
   matchFields: function (formFields, answerBank) {
     var reverseMap = this._buildReverseMap();
     var answerMap = {};
@@ -94,20 +118,16 @@ LinkedOut.autofill = {
       answerMap[answerBank[i].fieldKey] = answerBank[i];
     }
 
+    var unmatchedFields = [];
     var results = [];
     for (var j = 0; j < formFields.length; j++) {
       var ff = formFields[j];
       var normalized = this._normalize(ff.label);
       if (!normalized) continue;
 
-      var matchedKey = reverseMap[normalized] || null;
-
-      if (!matchedKey && answerMap[normalized]) {
-        matchedKey = normalized;
-      }
+      var matchedKey = this._matchFieldKey(ff.element, normalized, reverseMap, answerMap);
 
       if (matchedKey && answerMap[matchedKey] && answerMap[matchedKey].value) {
-        // If a generic "name" field matched first_name, combine first + last
         var FULL_NAME_ALIASES = ["name", "full name", "your name", "legal name", "candidate name"];
         if (matchedKey === "first_name" && FULL_NAME_ALIASES.indexOf(normalized) >= 0 && answerMap.last_name && answerMap.last_name.value) {
           var fullName = { fieldKey: "full_name", value: answerMap.first_name.value + " " + answerMap.last_name.value };
@@ -115,8 +135,73 @@ LinkedOut.autofill = {
         } else {
           results.push({ element: ff.element, field: answerMap[matchedKey], fieldType: ff.fieldType });
         }
+      } else {
+        unmatchedFields.push({ element: ff.element, label: ff.label, normalized: normalized, fieldType: ff.fieldType });
       }
     }
+
+    this._lastUnmatched = unmatchedFields;
+    return results;
+  },
+
+  matchFieldsWithML: async function (formFields, answerBank) {
+    var results = this.matchFields(formFields, answerBank);
+    var unmatched = this._lastUnmatched || [];
+    if (unmatched.length === 0) return results;
+
+    var answerMap = {};
+    for (var i = 0; i < answerBank.length; i++) {
+      answerMap[answerBank[i].fieldKey] = answerBank[i];
+    }
+
+    try {
+      var profileLabels = {};
+      for (var k in answerMap) {
+        if (answerMap[k].value) {
+          profileLabels[k] = answerMap[k].label || k.replace(/_/g, " ");
+        }
+      }
+
+      var queryLabels = [];
+      for (var u = 0; u < unmatched.length; u++) {
+        queryLabels.push(unmatched[u].label);
+      }
+
+      var mlResults = await new Promise(function (resolve) {
+        chrome.runtime.sendMessage({
+          type: "ML_MATCH_FIELDS",
+          queryLabels: queryLabels,
+          profileLabels: profileLabels,
+          threshold: 0.45,
+        }, function (res) {
+          resolve(res || []);
+        });
+      });
+
+      for (var m = 0; m < mlResults.length; m++) {
+        var mr = mlResults[m];
+        if (!mr || !mr.matchedKey) continue;
+        var uf = unmatched[m];
+        if (!uf) continue;
+        var answer = answerMap[mr.matchedKey];
+        if (!answer || !answer.value) continue;
+
+        if (LinkedOut.learnedRules) {
+          LinkedOut.learnedRules.save(uf.normalized, mr.matchedKey);
+        }
+
+        var FULL_NAME_ALIASES = ["name", "full name", "your name", "legal name", "candidate name"];
+        if (mr.matchedKey === "first_name" && FULL_NAME_ALIASES.indexOf(uf.normalized) >= 0 && answerMap.last_name && answerMap.last_name.value) {
+          var fullName = { fieldKey: "full_name", value: answerMap.first_name.value + " " + answerMap.last_name.value };
+          results.push({ element: uf.element, field: fullName, fieldType: uf.fieldType });
+        } else {
+          results.push({ element: uf.element, field: answer, fieldType: uf.fieldType });
+        }
+      }
+    } catch (e) {
+      console.warn("[LinkedOut] ML matching failed:", e);
+    }
+
     return results;
   },
 
@@ -267,12 +352,15 @@ LinkedOut.autofill = {
     return updates;
   },
 
-  run: function (answerBank) {
+  run: async function (answerBank) {
+    if (LinkedOut.learnedRules) {
+      await LinkedOut.learnedRules.load();
+    }
+
     var formFields = this.scanFormFields();
-    var matches = this.matchFields(formFields, answerBank);
+    var matches = await this.matchFieldsWithML(formFields, answerBank);
     var filled = 0;
 
-    // Find the resume field from answer bank
     var resumeField = null;
     for (var r = 0; r < answerBank.length; r++) {
       if (answerBank[r].fieldKey === "resume" && answerBank[r].value) {
@@ -291,7 +379,6 @@ LinkedOut.autofill = {
       }
     }
 
-    // Fill file inputs with stored resume
     if (resumeField) {
       var fileInputs = document.querySelectorAll('input[type="file"]');
       for (var f = 0; f < fileInputs.length; f++) {

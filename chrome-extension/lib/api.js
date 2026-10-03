@@ -190,6 +190,19 @@ LinkedOut.API = {
     });
   },
 
+  async getLearnedRules() {
+    var raw = await this._request("/learned-rules");
+    if (raw._unauthorized) return [];
+    return Array.isArray(raw) ? raw : [];
+  },
+
+  async syncLearnedRules(rules) {
+    return this._request("/learned-rules/sync", {
+      method: "POST",
+      body: JSON.stringify(rules),
+    });
+  },
+
   async logout() {
     await chrome.storage.local.remove(["linkedout_token", "linkedout_user"]);
   },
