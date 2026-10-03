@@ -241,6 +241,57 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     });
   }
 
+  if (msg.type === "SCAN_ALL_FRAMES" && sender.tab) {
+    chrome.scripting.executeScript({
+      target: { tabId: sender.tab.id, allFrames: true },
+      func: function () {
+        if (typeof LinkedOut === "undefined" || !LinkedOut.autofill) return [];
+        var fields = LinkedOut.autofill.scanFormFields();
+        return fields.map(function (f) {
+          return {
+            label: f.label,
+            fieldType: f.fieldType,
+            value: f.element.value || f.element.textContent || "",
+          };
+        });
+      },
+    }).then(function (results) {
+      var allFields = [];
+      for (var i = 0; i < results.length; i++) {
+        if (results[i].result && results[i].result.length > 0) {
+          allFields = allFields.concat(results[i].result);
+        }
+      }
+      sendResponse(allFields);
+    }).catch(function () {
+      sendResponse([]);
+    });
+    return true;
+  }
+
+  if (msg.type === "FILL_ALL_FRAMES" && sender.tab) {
+    chrome.scripting.executeScript({
+      target: { tabId: sender.tab.id, allFrames: true },
+      func: function (profileFields) {
+        if (typeof LinkedOut === "undefined" || !LinkedOut.autofill) return { filled: 0, total: 0 };
+        return LinkedOut.autofill.run(profileFields);
+      },
+      args: [msg.fields],
+    }).then(function (results) {
+      var totalFilled = 0, totalFields = 0;
+      for (var i = 0; i < results.length; i++) {
+        if (results[i].result) {
+          totalFilled += results[i].result.filled;
+          totalFields += results[i].result.total;
+        }
+      }
+      sendResponse({ filled: totalFilled, total: totalFields });
+    }).catch(function (e) {
+      sendResponse({ filled: 0, total: 0, error: e.message });
+    });
+    return true;
+  }
+
   if (msg.type === "GET_AUTH") {
     chrome.storage.local.get(["linkedout_token", "linkedout_user", "linkedout_api_url"], function (data) {
       sendResponse(data);

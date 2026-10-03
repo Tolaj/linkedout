@@ -51,6 +51,7 @@
         "content/detector.js",
         "content/panel.js"
       ],
+      "all_frames": true,
       "run_at": "document_idle"
     },
     {
@@ -80,6 +81,7 @@
         "content/detector.js",
         "content/panel.js"
       ],
+      "all_frames": true,
       "run_at": "document_idle"
     },
     {

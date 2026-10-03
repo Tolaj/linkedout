@@ -2,6 +2,7 @@ window.LinkedOut = window.LinkedOut || {};
 
 (function () {
   if (window.LinkedOut._panelLoaded) return;
+  if (window !== window.top) return;
   window.LinkedOut._panelLoaded = true;
 
   var panelHost = null;
@@ -339,9 +340,7 @@ window.LinkedOut = window.LinkedOut || {};
 
   function buildDetailsTab(fields) {
     if (!fields || fields.length === 0) {
-      var emptyMsg = hasEmbeddedAtsIframe()
-        ? 'Application form is inside an embedded iframe.<br/>Scan and autofill are not available on embedded forms.'
-        : 'No form fields detected yet.<br/>Fill out the application form, then click <strong>Scan</strong>.';
+      var emptyMsg = 'No form fields detected yet.<br/>Fill out the application form, then click <strong>Scan</strong>.';
       return `<div class="lo-details-empty">${emptyMsg}</div>
       <div class="lo-details-actions"><button class="lo-btn-sm" id="lo-scan">&#x1F50D; Scan Page</button></div>`;
     }
@@ -393,18 +392,16 @@ window.LinkedOut = window.LinkedOut || {};
 
   var SEARCH_LABELS = /^(search|keyword|find|sort|filter|order\s*by|results?\s*per|page\s*size|show|display|view\s*as|job\s*title.*keyword|job\s*category|save\s*job\s*alert|search\s*area|within\s*\d+)/i;
 
-  function hasEmbeddedAtsIframe() {
-    var atsIframes = document.querySelectorAll('iframe[src*="greenhouse.io"], iframe[src*="lever.co"], iframe[src*="jobvite.com"], iframe[src*="workday.com"], iframe[src*="icims.com"], iframe[src*="smartrecruiters.com"]');
-    return atsIframes.length > 0;
-  }
-
   function scanPageFields() {
     var fields = [];
     var seenLabels = {};
     try {
-      var allInputs = document.querySelectorAll("input, select, textarea");
+      var allInputs = document.querySelectorAll('input, select, textarea, [role="textbox"], [role="combobox"], [role="listbox"], [role="spinbutton"], [role="searchbox"], [contenteditable="true"], [contenteditable=""]');
+      var seenEls = new Set();
       for (var i = 0; i < allInputs.length; i++) {
         var el = allInputs[i];
+        if (seenEls.has(el)) continue;
+        seenEls.add(el);
         if (el.type === "hidden" || el.type === "submit" || el.type === "button" || el.type === "password" || el.type === "file") continue;
         if (el.offsetParent === null && !el.closest("details")) continue;
         if (el.offsetWidth === 0 || el.offsetHeight === 0) continue;
@@ -422,6 +419,8 @@ window.LinkedOut = window.LinkedOut || {};
           val = label;
           var group = el.getAttribute("name");
           if (group) label = group.replace(/[_\-]/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2");
+        } else if (el.getAttribute("contenteditable") !== null || (el.getAttribute("role") === "textbox" && el.tagName !== "INPUT" && el.tagName !== "TEXTAREA")) {
+          val = el.textContent;
         } else {
           val = el.value;
         }
@@ -614,13 +613,29 @@ window.LinkedOut = window.LinkedOut || {};
   function bindDetailsEvents(sr) {
     var scanBtn = sr.getElementById("lo-scan");
     if (scanBtn) {
-      scanBtn.addEventListener("click", function () {
+      scanBtn.addEventListener("click", async function () {
         capturedFields = scanPageFields();
+        try {
+          var iframeFields = await new Promise(function (resolve) {
+            chrome.runtime.sendMessage({ type: "SCAN_ALL_FRAMES" }, function (res) {
+              resolve(res || []);
+            });
+          });
+          var seenLabels = {};
+          for (var ci = 0; ci < capturedFields.length; ci++) {
+            seenLabels[capturedFields[ci].label.toLowerCase()] = true;
+          }
+          for (var fi = 0; fi < iframeFields.length; fi++) {
+            var f = iframeFields[fi];
+            if (f.label && f.value && !seenLabels[f.label.toLowerCase()]) {
+              capturedFields.push(f);
+              seenLabels[f.label.toLowerCase()] = true;
+            }
+          }
+        } catch (e) {}
         refreshDetailsTab(sr);
         if (capturedFields.length > 0) {
           showStatus("Captured " + capturedFields.length + " fields", "success");
-        } else if (hasEmbeddedAtsIframe()) {
-          showStatus("Form is inside an embedded iframe — scan and autofill not available here", "warn");
         } else {
           showStatus("No filled fields found", "warn");
         }
@@ -704,8 +719,26 @@ window.LinkedOut = window.LinkedOut || {};
   function debouncedScan() {
     if (_isTracked || !shadowRoot) return;
     clearTimeout(_scanDebounce);
-    _scanDebounce = setTimeout(function () {
+    _scanDebounce = setTimeout(async function () {
       var fields = scanPageFields();
+      try {
+        var iframeFields = await new Promise(function (resolve) {
+          chrome.runtime.sendMessage({ type: "SCAN_ALL_FRAMES" }, function (res) {
+            resolve(res || []);
+          });
+        });
+        var seenLabels = {};
+        for (var ci = 0; ci < fields.length; ci++) {
+          seenLabels[fields[ci].label.toLowerCase()] = true;
+        }
+        for (var fi = 0; fi < iframeFields.length; fi++) {
+          var f = iframeFields[fi];
+          if (f.label && f.value && !seenLabels[f.label.toLowerCase()]) {
+            fields.push(f);
+            seenLabels[f.label.toLowerCase()] = true;
+          }
+        }
+      } catch (e) {}
       if (fields.length > 0) {
         capturedFields = fields;
         cacheFields(fields);
@@ -737,6 +770,24 @@ window.LinkedOut = window.LinkedOut || {};
 
     // Try live scan first, fall back to cached fields (survives page reload)
     var scanned = scanPageFields();
+    try {
+      var iframeFields = await new Promise(function (resolve) {
+        chrome.runtime.sendMessage({ type: "SCAN_ALL_FRAMES" }, function (res) {
+          resolve(res || []);
+        });
+      });
+      var seenLabels = {};
+      for (var ci = 0; ci < scanned.length; ci++) {
+        seenLabels[scanned[ci].label.toLowerCase()] = true;
+      }
+      for (var fi = 0; fi < iframeFields.length; fi++) {
+        var f = iframeFields[fi];
+        if (f.label && f.value && !seenLabels[f.label.toLowerCase()]) {
+          scanned.push(f);
+          seenLabels[f.label.toLowerCase()] = true;
+        }
+      }
+    } catch (e) {}
     if (scanned.length > 0) {
       capturedFields = scanned;
       cacheFields(scanned);
@@ -922,6 +973,15 @@ window.LinkedOut = window.LinkedOut || {};
         else if (!fields || fields.length === 0) { showStatus("No answers saved.", "warn"); }
         else {
           var result = LinkedOut.autofill.run(fields);
+          try {
+            var iframeResult = await new Promise(function (resolve) {
+              chrome.runtime.sendMessage({ type: "FILL_ALL_FRAMES", fields: fields }, function (res) {
+                resolve(res || { filled: 0, total: 0 });
+              });
+            });
+            result.filled += iframeResult.filled;
+            result.total += iframeResult.total;
+          } catch (e) {}
           showStatus("Filled " + result.filled + " of " + result.total + " fields", result.filled > 0 ? "success" : "warn");
         }
       } catch (e) { showStatus(e.message || "Failed", "error"); }

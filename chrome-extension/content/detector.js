@@ -2,6 +2,7 @@ window.LinkedOut = window.LinkedOut || {};
 
 (function () {
   if (window.LinkedOut._detectorLoaded) return;
+  if (window !== window.top) return;
   window.LinkedOut._detectorLoaded = true;
 
   var lastUrl = window.location.href;

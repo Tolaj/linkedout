@@ -3,14 +3,19 @@ window.LinkedOut = window.LinkedOut || {};
 LinkedOut.autofill = {
   scanFormFields: function () {
     var results = [];
-    var elements = document.querySelectorAll("input, select, textarea");
+    var seen = new Set();
+    var elements = document.querySelectorAll('input, select, textarea, [role="textbox"], [role="combobox"], [role="listbox"], [role="spinbutton"], [role="searchbox"], [contenteditable="true"], [contenteditable=""]');
     for (var i = 0; i < elements.length; i++) {
       var el = elements[i];
+      if (seen.has(el)) continue;
+      seen.add(el);
       if (el.type === "hidden" || el.type === "submit" || el.type === "button") continue;
       if (el.offsetParent === null && el.type !== "file") continue;
       var label = this._extractLabel(el);
       if (!label) continue;
-      results.push({ element: el, label: label, fieldType: el.type || "text" });
+      var fieldType = el.type || (el.tagName === "SELECT" ? "select" : el.tagName === "TEXTAREA" ? "textarea" : "text");
+      if (el.getAttribute("contenteditable") !== null || el.getAttribute("role") === "textbox") fieldType = "text";
+      results.push({ element: el, label: label, fieldType: fieldType });
     }
     return results;
   },
@@ -59,9 +64,11 @@ LinkedOut.autofill = {
       }
       walker = walker.parentElement;
     }
-    // 6. Placeholder and name fallback
+    // 6. Placeholder, title, and name fallback
     if (el.placeholder) return el.placeholder;
+    if (el.title) return el.title;
     if (el.name) return el.name.replace(/[_\-]/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2");
+    if (el.getAttribute("data-placeholder")) return el.getAttribute("data-placeholder");
     return "";
   },
 
@@ -174,6 +181,18 @@ LinkedOut.autofill = {
       return matched;
     }
 
+    // Contenteditable elements
+    if (element.getAttribute("contenteditable") !== null || element.getAttribute("role") === "textbox") {
+      if (element.tagName !== "INPUT" && element.tagName !== "TEXTAREA" && element.tagName !== "SELECT") {
+        element.focus();
+        element.textContent = value;
+        element.dispatchEvent(new Event("input", { bubbles: true }));
+        element.dispatchEvent(new Event("change", { bubbles: true }));
+        element.dispatchEvent(new Event("blur", { bubbles: true }));
+        return true;
+      }
+    }
+
     // Text inputs and textareas
     var proto = element.tagName === "TEXTAREA"
       ? window.HTMLTextAreaElement.prototype
@@ -212,7 +231,7 @@ LinkedOut.autofill = {
     for (var j = 0; j < formFields.length; j++) {
       var ff = formFields[j];
       if (ff.fieldType === "file" || ff.fieldType === "password") continue;
-      var val = ff.element.value;
+      var val = ff.element.value || ff.element.textContent || "";
       if (!val || !val.trim()) continue;
       val = val.trim();
 
