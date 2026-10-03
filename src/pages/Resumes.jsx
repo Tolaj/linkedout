@@ -37,7 +37,9 @@ export default function Resumes() {
   }, [resumes, hasWorkspace]);
 
   async function handleUpload(file, archetype, version) {
-    const destName = `Resume_${archetype}_v${version}.pdf`;
+    const baseName = file.name.replace(/\.pdf$/i, "");
+    const existing = resumes.filter((r) => r.fileName === file.name || r.fileName.startsWith(baseName));
+    const destName = existing.length > 0 ? `${baseName}_v${existing.length + 1}.pdf` : file.name;
     const meta = {
       id: uid(),
       archetype,

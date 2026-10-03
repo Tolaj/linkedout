@@ -258,8 +258,9 @@ function ResumeFieldCard({ field, resumes, onBlur, onDelete }) {
     }
 
     if (!fileData) {
-      setError("Can't read local file. Re-upload the PDF to use it for autofill.");
-      return;
+      setError("Couldn't read local file — autofill won't attach this resume. Upload new to fix.");
+    } else {
+      setError("");
     }
 
     const payload = JSON.stringify({
@@ -268,13 +269,15 @@ function ResumeFieldCard({ field, resumes, onBlur, onDelete }) {
       type: "application/pdf",
       size: resume.size || 0,
       archetype: resume.archetype,
-      data: fileData,
+      ...(fileData ? { data: fileData } : {}),
     });
     onBlur(field, payload);
   }
 
   async function handleUploadNew(file, archetype, version) {
-    const destName = `Resume_${archetype}_v${version}.pdf`;
+    const baseName = file.name.replace(/\.pdf$/i, "");
+    const existing = resumes.filter((r) => r.fileName === file.name || r.fileName.startsWith(baseName));
+    const destName = existing.length > 0 ? `${baseName}_v${existing.length + 1}.pdf` : file.name;
 
     const meta = {
       id: uid(),
