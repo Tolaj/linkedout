@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef } from "react";
-import { ChevronDown, ChevronRight, Plus, Trash2, Upload, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronDown, ChevronRight, Plus, Trash2, Upload, X, FileText } from "lucide-react";
 import NoWorkspace from "../components/NoWorkspace";
 import useProfileFieldStore from "../stores/useProfileFieldStore";
-import { PROFILE_CATEGORIES, uid } from "../lib/constants";
+import useResumeStore from "../stores/useResumeStore";
+import { PROFILE_CATEGORIES, RESUME_ARCHETYPES, uid } from "../lib/constants";
 import useSettingsStore from "../stores/useSettingsStore";
+import { isFileSystemSupported, hasRootDirectory, saveFile, readFile } from "../services/fileSystem";
 
 const CATEGORY_LABELS = {
   personal: "Personal Info",
@@ -16,12 +18,13 @@ const CATEGORY_LABELS = {
 
 export default function QuickApply() {
   const { fields, loaded, load, seedDefaults, updateField, addField, deleteField } = useProfileFieldStore();
+  const { resumes, load: loadResumes } = useResumeStore();
   const [collapsed, setCollapsed] = useState({});
   const [adding, setAdding] = useState(null);
   const folderName = useSettingsStore((s) => s.folderName);
   const hasWorkspace = !!folderName;
 
-  useEffect(() => { if (hasWorkspace) load(); }, [load, hasWorkspace, folderName]);
+  useEffect(() => { if (hasWorkspace) { load(); loadResumes(); } }, [load, loadResumes, hasWorkspace, folderName]);
   useEffect(() => { if (hasWorkspace && loaded) seedDefaults(); }, [loaded, seedDefaults, hasWorkspace]);
 
   const byCategory = {};
@@ -139,6 +142,7 @@ export default function QuickApply() {
                       <FieldCard
                         key={field.id}
                         field={field}
+                        resumes={resumes}
                         onBlur={handleBlur}
                         onDelete={field.fieldKey.startsWith("custom_") ? () => deleteField(field.id) : null}
                       />
@@ -169,7 +173,7 @@ export default function QuickApply() {
   );
 }
 
-function FieldCard({ field, onBlur, onDelete }) {
+function FieldCard({ field, resumes, onBlur, onDelete }) {
   const [value, setValue] = useState(field.value || "");
 
   useEffect(() => { setValue(field.value || ""); }, [field.value]);
@@ -177,7 +181,7 @@ function FieldCard({ field, onBlur, onDelete }) {
   const inputClass = "w-full bg-base-800 border border-base-600 rounded-md px-3 py-2 text-sm text-base-100 focus:border-accent focus:outline-none transition-colors";
 
   if (field.type === "file") {
-    return <FileFieldCard field={field} onBlur={onBlur} onDelete={onDelete} />;
+    return <ResumeFieldCard field={field} resumes={resumes || []} onBlur={onBlur} onDelete={onDelete} />;
   }
 
   return (
@@ -224,24 +228,76 @@ function FieldCard({ field, onBlur, onDelete }) {
   );
 }
 
-function FileFieldCard({ field, onBlur, onDelete }) {
-  const fileRef = useRef(null);
+function ResumeFieldCard({ field, resumes, onBlur, onDelete }) {
+  const { addResume } = useResumeStore();
+  const [showUploadForm, setShowUploadForm] = useState(false);
   const parsed = field.value ? (() => { try { return JSON.parse(field.value); } catch { return null; } })() : null;
+  const selectedResumeId = parsed?.resumeId || "";
 
-  async function handleFile(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+  async function handleSelectResume(resumeId) {
+    if (!resumeId) { onBlur(field, ""); return; }
+    const resume = resumes.find((r) => r.id === resumeId);
+    if (!resume) return;
+
+    let fileData = null;
+    if (resume.localPath && isFileSystemSupported() && hasRootDirectory()) {
+      try {
+        const file = await readFile(resume.localPath);
+        const reader = new FileReader();
+        fileData = await new Promise((resolve) => {
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(file);
+        });
+      } catch {}
+    }
+
+    const payload = JSON.stringify({
+      resumeId: resume.id,
+      name: resume.fileName,
+      type: "application/pdf",
+      size: resume.size || 0,
+      archetype: resume.archetype,
+      ...(fileData ? { data: fileData } : {}),
+    });
+    onBlur(field, payload);
+  }
+
+  async function handleUploadNew(file, archetype, version) {
+    const destName = `Resume_${archetype}_v${version}.pdf`;
+
+    const meta = {
+      id: uid(),
+      archetype,
+      version,
+      fileName: destName,
+      uploadedAt: new Date().toISOString(),
+      size: file.size,
+      localPath: `01_Resumes/${destName}`,
+    };
+
+    if (isFileSystemSupported() && hasRootDirectory()) {
+      try { await saveFile(`01_Resumes/${destName}`, file); } catch {}
+    }
+    await addResume(meta);
+
     const reader = new FileReader();
     reader.onload = () => {
-      const payload = JSON.stringify({ name: file.name, type: file.type, size: file.size, data: reader.result });
+      const payload = JSON.stringify({
+        resumeId: meta.id,
+        name: destName,
+        type: file.type,
+        size: file.size,
+        archetype,
+        data: reader.result,
+      });
       onBlur(field, payload);
     };
     reader.readAsDataURL(file);
+    setShowUploadForm(false);
   }
 
   function handleRemove() {
     onBlur(field, "");
-    if (fileRef.current) fileRef.current.value = "";
   }
 
   return (
@@ -256,26 +312,95 @@ function FileFieldCard({ field, onBlur, onDelete }) {
       </div>
       {parsed ? (
         <div className="flex items-center gap-2 bg-base-800 border border-base-600 rounded-md px-3 py-2">
+          <FileText className="w-4 h-4 text-accent flex-shrink-0" />
           <span className="text-sm text-base-100 truncate flex-1">{parsed.name}</span>
-          <span className="text-xs text-base-400">{(parsed.size / 1024).toFixed(0)} KB</span>
+          {parsed.size > 0 && <span className="text-xs text-base-400">{(parsed.size / 1024).toFixed(0)} KB</span>}
           <button onClick={handleRemove} className="text-base-400 hover:text-[#DC2626] transition-colors">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
+      ) : showUploadForm ? (
+        <ResumeUploadForm onUpload={handleUploadNew} onCancel={() => setShowUploadForm(false)} />
+      ) : resumes.length > 0 ? (
+        <div className="space-y-2">
+          <select
+            value={selectedResumeId}
+            onChange={(e) => handleSelectResume(e.target.value)}
+            className="w-full bg-base-800 border border-base-600 rounded-md px-3 py-2 text-sm text-base-100 focus:border-accent focus:outline-none transition-colors"
+          >
+            <option value="">Select a resume...</option>
+            {resumes.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.fileName} ({r.archetype} v{r.version})
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => setShowUploadForm(true)}
+            className="flex items-center justify-center gap-1.5 text-xs text-base-400 hover:text-accent transition-colors w-full"
+          >
+            <Upload className="w-3 h-3" />
+            <span>or upload new</span>
+          </button>
+        </div>
       ) : (
-        <label className="flex items-center gap-2 bg-base-800 border border-dashed border-base-500 rounded-md px-3 py-2.5 cursor-pointer hover:border-accent transition-colors">
+        <button
+          onClick={() => setShowUploadForm(true)}
+          className="w-full flex items-center gap-2 bg-base-800 border border-dashed border-base-500 rounded-md px-3 py-2.5 hover:border-accent transition-colors"
+        >
           <Upload className="w-4 h-4 text-base-400" />
-          <span className="text-sm text-base-400">Upload {field.label.toLowerCase()}</span>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".pdf,.doc,.docx"
-            onChange={handleFile}
-            className="hidden"
-          />
-        </label>
+          <span className="text-sm text-base-400">Upload resume</span>
+        </button>
       )}
     </div>
+  );
+}
+
+function ResumeUploadForm({ onUpload, onCancel }) {
+  const [file, setFile] = useState(null);
+  const [archetype, setArchetype] = useState(RESUME_ARCHETYPES[0]);
+  const [version, setVersion] = useState("1");
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (!file) return;
+    onUpload(file, archetype, parseInt(version));
+  }
+
+  const inputClass = "w-full bg-base-800 border border-base-600 rounded-md px-3 py-2 text-sm text-base-100 focus:border-accent focus:outline-none transition-colors";
+
+  return (
+    <form onSubmit={handleSubmit} className="bg-base-900 border border-base-600 rounded-lg p-4 space-y-3">
+      <div>
+        <label className="text-[11px] text-base-300 mb-1 block">PDF file</label>
+        <input
+          type="file"
+          accept=".pdf"
+          onChange={(e) => setFile(e.target.files[0])}
+          className="text-sm text-base-200 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-base-600 file:text-base-200 file:text-xs hover:file:bg-base-500"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-[11px] text-base-300 mb-1 block">Archetype</label>
+          <select value={archetype} onChange={(e) => setArchetype(e.target.value)} className={inputClass}>
+            {RESUME_ARCHETYPES.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-[11px] text-base-300 mb-1 block">Version</label>
+          <input type="number" min="1" value={version} onChange={(e) => setVersion(e.target.value)} className={inputClass} />
+        </div>
+      </div>
+      <div className="flex gap-2 pt-1">
+        <button type="submit" disabled={!file} className="bg-accent text-accent-dark text-sm font-medium px-4 py-2 rounded-md hover:bg-accent-light transition-colors disabled:opacity-50">
+          Upload
+        </button>
+        <button type="button" onClick={onCancel} className="text-sm text-base-300 hover:text-base-100 px-3">
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 
