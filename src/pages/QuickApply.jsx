@@ -231,24 +231,35 @@ function FieldCard({ field, resumes, onBlur, onDelete }) {
 function ResumeFieldCard({ field, resumes, onBlur, onDelete }) {
   const { addResume } = useResumeStore();
   const [showUploadForm, setShowUploadForm] = useState(false);
+  const [error, setError] = useState("");
   const parsed = field.value ? (() => { try { return JSON.parse(field.value); } catch { return null; } })() : null;
   const selectedResumeId = parsed?.resumeId || "";
+
+  function readFileAsDataURL(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(file);
+    });
+  }
 
   async function handleSelectResume(resumeId) {
     if (!resumeId) { onBlur(field, ""); return; }
     const resume = resumes.find((r) => r.id === resumeId);
     if (!resume) return;
+    setError("");
 
     let fileData = null;
     if (resume.localPath && isFileSystemSupported() && hasRootDirectory()) {
       try {
         const file = await readFile(resume.localPath);
-        const reader = new FileReader();
-        fileData = await new Promise((resolve) => {
-          reader.onload = () => resolve(reader.result);
-          reader.readAsDataURL(file);
-        });
+        fileData = await readFileAsDataURL(file);
       } catch {}
+    }
+
+    if (!fileData) {
+      setError("Can't read local file. Re-upload the PDF to use it for autofill.");
+      return;
     }
 
     const payload = JSON.stringify({
@@ -257,7 +268,7 @@ function ResumeFieldCard({ field, resumes, onBlur, onDelete }) {
       type: "application/pdf",
       size: resume.size || 0,
       archetype: resume.archetype,
-      ...(fileData ? { data: fileData } : {}),
+      data: fileData,
     });
     onBlur(field, payload);
   }
@@ -280,20 +291,18 @@ function ResumeFieldCard({ field, resumes, onBlur, onDelete }) {
     }
     await addResume(meta);
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const payload = JSON.stringify({
-        resumeId: meta.id,
-        name: destName,
-        type: file.type,
-        size: file.size,
-        archetype,
-        data: reader.result,
-      });
-      onBlur(field, payload);
-    };
-    reader.readAsDataURL(file);
+    const fileData = await readFileAsDataURL(file);
+    const payload = JSON.stringify({
+      resumeId: meta.id,
+      name: destName,
+      type: file.type,
+      size: file.size,
+      archetype,
+      data: fileData,
+    });
+    onBlur(field, payload);
     setShowUploadForm(false);
+    setError("");
   }
 
   function handleRemove() {
@@ -335,8 +344,9 @@ function ResumeFieldCard({ field, resumes, onBlur, onDelete }) {
               </option>
             ))}
           </select>
+          {error && <p className="text-xs text-[#DC2626]">{error}</p>}
           <button
-            onClick={() => setShowUploadForm(true)}
+            onClick={() => { setShowUploadForm(true); setError(""); }}
             className="flex items-center justify-center gap-1.5 text-xs text-base-400 hover:text-accent transition-colors w-full"
           >
             <Upload className="w-3 h-3" />

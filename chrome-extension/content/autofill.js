@@ -205,6 +205,44 @@ LinkedOut.autofill = {
     return results;
   },
 
+  _getFileInputContext: function (el) {
+    var label = this._extractLabel(el) || "";
+    var name = el.getAttribute("name") || "";
+    var id = el.id || "";
+    var ariaLabel = el.getAttribute("aria-label") || "";
+    var parts = [label, name, id, ariaLabel];
+    var walker = el.parentElement;
+    for (var w = 0; w < 6 && walker; w++) {
+      var text = "";
+      for (var c = 0; c < walker.childNodes.length; c++) {
+        var node = walker.childNodes[c];
+        if (node.nodeType === 3) text += node.textContent;
+        else if (node.nodeType === 1 && !node.contains(el) && node.textContent.length < 80) {
+          text += " " + node.textContent;
+        }
+      }
+      text = text.trim();
+      if (text) { parts.push(text); break; }
+      walker = walker.parentElement;
+    }
+    return parts.join(" ").toLowerCase();
+  },
+
+  _findResumeFileInput: function (fileInputs) {
+    if (fileInputs.length === 0) return null;
+    var SKIP_RE = /cover.?letter|motivation|photo|avatar|image|picture|portrait|headshot/;
+    var RESUME_RE = /resume|cv\b|curriculum/;
+    for (var i = 0; i < fileInputs.length; i++) {
+      var ctx = this._getFileInputContext(fileInputs[i]);
+      if (RESUME_RE.test(ctx) && !SKIP_RE.test(ctx)) return fileInputs[i];
+    }
+    for (var j = 0; j < fileInputs.length; j++) {
+      var ctx2 = this._getFileInputContext(fileInputs[j]);
+      if (!SKIP_RE.test(ctx2)) return fileInputs[j];
+    }
+    return null;
+  },
+
   fillFileInput: function (element, fileData) {
     try {
       var parsed = JSON.parse(fileData);
@@ -368,7 +406,6 @@ LinkedOut.autofill = {
         break;
       }
     }
-
     for (var i = 0; i < matches.length; i++) {
       var m = matches[i];
       if (m.fieldType === "file") continue;
@@ -381,11 +418,12 @@ LinkedOut.autofill = {
 
     if (resumeField) {
       var fileInputs = document.querySelectorAll('input[type="file"]');
-      for (var f = 0; f < fileInputs.length; f++) {
-        var filledFile = this.fillFileInput(fileInputs[f], resumeField.value);
+      var resumeInput = this._findResumeFileInput(fileInputs);
+      if (resumeInput) {
+        var filledFile = this.fillFileInput(resumeInput, resumeField.value);
         if (filledFile) {
           filled++;
-          this._highlight(fileInputs[f], "#16A34A");
+          this._highlight(resumeInput, "#16A34A");
         }
       }
     }

@@ -322,6 +322,24 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
             LinkedOut.autofill._highlight(m.element, "#16A34A");
           }
         }
+        var resumeField = null;
+        for (var r = 0; r < profileFields.length; r++) {
+          if (profileFields[r].fieldKey === "resume" && profileFields[r].value) {
+            resumeField = profileFields[r];
+            break;
+          }
+        }
+        if (resumeField) {
+          var fileInputs = document.querySelectorAll('input[type="file"]');
+          var resumeInput = LinkedOut.autofill._findResumeFileInput(fileInputs);
+          if (resumeInput) {
+            var filledFile = LinkedOut.autofill.fillFileInput(resumeInput, resumeField.value);
+            if (filledFile) {
+              filled++;
+              LinkedOut.autofill._highlight(resumeInput, "#16A34A");
+            }
+          }
+        }
         return { filled: filled, total: formFields.length, matched: matches.length };
       },
       args: [msg.fields],

@@ -2,6 +2,7 @@ import { pipeline, env } from "../lib/transformers.min.js";
 
 env.allowLocalModels = false;
 env.useBrowserCache = true;
+env.backends.onnx.wasm.wasmPaths = chrome.runtime.getURL("lib/");
 
 let embedder = null;
 let isLoading = false;
