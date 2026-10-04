@@ -64,6 +64,11 @@ LinkedOut.autofill = {
       }
       walker = walker.parentElement;
     }
+    // 5.5. Fall back to nearest preceding heading in document order.
+    // Catches labels that sit outside the limited parent-walk above
+    // (common in React-built ATS forms where headings are far-away siblings).
+    var heading = this._nearestPrecedingHeading(el);
+    if (heading) return heading;
     // 6. Placeholder, title, and name fallback
     if (el.placeholder) return el.placeholder;
     if (el.title) return el.title;
@@ -73,7 +78,7 @@ LinkedOut.autofill = {
   },
 
   _normalize: function (text) {
-    return text.toLowerCase().replace(/[*:?]/g, "").trim().replace(/\s+/g, " ");
+    return text.toLowerCase().replace(/[*:?()]/g, "").replace(/[_\-\/]/g, " ").trim().replace(/\s+/g, " ");
   },
 
   _buildReverseMap: function () {
@@ -81,7 +86,7 @@ LinkedOut.autofill = {
     var aliases = LinkedOut.FIELD_ALIASES || {};
     for (var key in aliases) {
       for (var i = 0; i < aliases[key].length; i++) {
-        map[aliases[key][i]] = key;
+        map[this._normalize(aliases[key][i])] = key;
       }
     }
     return map;
@@ -167,6 +172,7 @@ LinkedOut.autofill = {
         queryLabels.push(unmatched[u].label);
       }
 
+      console.log("[LinkedOut] ML matching", unmatched.length, "unmatched fields:", queryLabels);
       var mlResults = await new Promise(function (resolve) {
         chrome.runtime.sendMessage({
           type: "ML_MATCH_FIELDS",
@@ -177,6 +183,7 @@ LinkedOut.autofill = {
           resolve(res || []);
         });
       });
+      console.log("[LinkedOut] ML results:", mlResults);
 
       for (var m = 0; m < mlResults.length; m++) {
         var mr = mlResults[m];
@@ -205,39 +212,58 @@ LinkedOut.autofill = {
     return results;
   },
 
-  _getFileInputContext: function (el) {
+  _nearestPrecedingHeading: function (el) {
+    // Walk the document in reading order, tracking the most recent
+    // heading-like text seen before `el`. Headings are often siblings
+    // of a distant ancestor, not within a few parent levels, so we scan
+    // the whole document rather than limiting to nearby parents.
+    var HEADING_SEL = "h1, h2, h3, h4, h5, h6, legend, label, strong, b, [class*='label'], [class*='Label'], [class*='title'], [class*='Title'], [class*='heading'], [class*='Heading']";
+    var scope = el.closest("form") || document;
+    var allHeadings = scope.querySelectorAll(HEADING_SEL);
+    var best = "";
+    for (var i = 0; i < allHeadings.length; i++) {
+      var h = allHeadings[i];
+      if (h.contains(el)) continue;
+      var text = h.textContent.trim();
+      if (!text || text.length > 60) continue;
+      if (/^(attach|dropbox|browse|choose file|upload|enter manually|select file|drag.*drop)$/i.test(text)) continue;
+      // DOCUMENT_POSITION_FOLLOWING on el means h precedes el in the document.
+      // Headings are iterated in document order, so the last one that precedes
+      // el is the closest preceding heading.
+      if (h.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) {
+        best = text;
+      } else {
+        break;
+      }
+    }
+    return best.toLowerCase();
+  },
+
+  _getClosestLabel: function (el) {
     var label = this._extractLabel(el) || "";
     var name = el.getAttribute("name") || "";
     var id = el.id || "";
     var ariaLabel = el.getAttribute("aria-label") || "";
-    var parts = [label, name, id, ariaLabel];
-    var walker = el.parentElement;
-    for (var w = 0; w < 6 && walker; w++) {
-      var text = "";
-      for (var c = 0; c < walker.childNodes.length; c++) {
-        var node = walker.childNodes[c];
-        if (node.nodeType === 3) text += node.textContent;
-        else if (node.nodeType === 1 && !node.contains(el) && node.textContent.length < 80) {
-          text += " " + node.textContent;
-        }
-      }
-      text = text.trim();
-      if (text) { parts.push(text); break; }
-      walker = walker.parentElement;
-    }
-    return parts.join(" ").toLowerCase();
+    var parts = [label, ariaLabel, name.replace(/[_\-]/g, " "), id.replace(/[_\-]/g, " ")].join(" ").trim();
+    var heading = this._nearestPrecedingHeading(el);
+    return (parts + " " + heading).toLowerCase().trim();
   },
 
   _findResumeFileInput: function (fileInputs) {
     if (fileInputs.length === 0) return null;
-    var SKIP_RE = /cover.?letter|motivation|photo|avatar|image|picture|portrait|headshot/;
+    var SKIP_RE = /cover.?letter|motivation|photo|avatar|headshot|portrait/;
     var RESUME_RE = /resume|cv\b|curriculum/;
+    if (fileInputs.length === 1) {
+      var lbl = this._getClosestLabel(fileInputs[0]);
+      if (SKIP_RE.test(lbl)) return null;
+      return fileInputs[0];
+    }
     for (var i = 0; i < fileInputs.length; i++) {
-      var ctx = this._getFileInputContext(fileInputs[i]);
+      var ctx = this._getClosestLabel(fileInputs[i]);
       if (RESUME_RE.test(ctx) && !SKIP_RE.test(ctx)) return fileInputs[i];
     }
     for (var j = 0; j < fileInputs.length; j++) {
-      var ctx2 = this._getFileInputContext(fileInputs[j]);
+      var ctx2 = this._getClosestLabel(fileInputs[j]);
       if (!SKIP_RE.test(ctx2)) return fileInputs[j];
     }
     return null;

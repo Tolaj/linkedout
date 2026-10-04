@@ -2,7 +2,12 @@ import { pipeline, env } from "../lib/transformers.min.js";
 
 env.allowLocalModels = false;
 env.useBrowserCache = true;
-env.backends.onnx.wasm.wasmPaths = chrome.runtime.getURL("lib/");
+try {
+  env.backends.onnx.wasm.wasmPaths = chrome.runtime.getURL("lib/");
+} catch (e) {
+  console.warn("[LinkedOut ML] Could not set wasmPaths:", e);
+}
+console.log("[LinkedOut ML] Offscreen document loaded, wasmPaths:", env.backends?.onnx?.wasm?.wasmPaths);
 
 let embedder = null;
 let isLoading = false;

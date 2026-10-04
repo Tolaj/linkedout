@@ -1,12 +1,12 @@
 window.LinkedOut = window.LinkedOut || {};
 
 LinkedOut.FIELD_ALIASES = {
-  first_name: ["first name", "fname", "given name", "your first name", "legal first name", "name", "full name", "your name", "legal name", "candidate name"],
+  first_name: ["first name", "fname", "given name", "your first name", "legal first name", "name", "full name", "your name", "legal name", "candidate name", "preferred name", "preferred first name", "nickname", "display name"],
   last_name: ["last name", "lname", "surname", "family name", "your last name", "legal last name"],
   email: ["email", "e-mail", "email address", "your email", "contact email", "work email", "personal email"],
-  phone: ["phone", "telephone", "tel", "cell", "cellphone", "mobile", "phone number", "mobile number", "contact number", "mobile phone"],
-  address: ["address", "street address", "street", "address line 1", "address line", "home address", "mailing address"],
-  city: ["city", "town"],
+  phone: ["phone", "telephone", "tel", "cell", "cellphone", "mobile", "phone number", "mobile number", "contact number", "mobile phone", "cell phone", "primary phone"],
+  address: ["address", "street address", "street", "address line 1", "address line", "home address", "mailing address", "address 1", "street address 1"],
+  city: ["city", "town", "location city", "location", "city/town", "current city", "home city"],
   state: ["state", "province", "state/province", "region"],
   zip: ["zip", "zip code", "postal code", "zipcode", "zip/postal code", "postcode"],
   country: ["country", "country/region", "nation"],
@@ -22,7 +22,7 @@ LinkedOut.FIELD_ALIASES = {
   major: ["major", "field of study", "area of study", "concentration", "discipline"],
   graduation_year: ["graduation year", "grad year", "year of graduation", "expected graduation", "graduation date"],
   gpa: ["gpa", "grade point average", "cumulative gpa"],
-  linkedin_url: ["linkedin", "linkedin url", "linkedin profile", "linkedin link"],
+  linkedin_url: ["linkedin", "linkedin url", "linkedin profile", "linkedin link", "linkedin profile url"],
   github_url: ["github", "github url", "github profile", "github link"],
   portfolio_url: ["portfolio", "portfolio url", "portfolio link", "portfolio website"],
   personal_website: ["website", "personal website", "personal site", "web site", "homepage", "blog"],
